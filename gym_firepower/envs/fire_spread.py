@@ -8,10 +8,13 @@ from copy import deepcopy
 from numpy import arccos, array, dot, pi, cross
 from numpy.linalg import det, norm
 from gym import logger
+from gym.utils import seeding
+
 
 DEFAULT_FUEL_TYPE = -3
 DEFAULT_FUEL_AMT = 100
 DEFAULT_SPREAD_PROBAB = 0.3
+
 
 class Grid(object):
     def __init__(self, geo_file, scaling_factor, rng):
@@ -397,3 +400,22 @@ class FireSpread(object):
     
     def get_distance_from_fire(self):
         return self.grid.get_distance_from_fire()
+
+
+if __name__ == "__main__":
+    conf_file = "./../../../FirePower-agent-private/configurations/configuration.json"
+    seed = 50
+
+    np_random, seed = seeding.np_random(seed)
+    fire_spread = FireSpread(conf_file, 1, np_random)
+
+    num_of_episode = 100
+    num_of_steps = 300
+    for j in range(num_of_episode):
+        fire_spread.reset()
+
+        for i in range(num_of_steps):
+            fire_spread.step()
+            state = fire_spread.get_reduced_state()
+            print("episode:", j, ", step:", i,"state:", state)
+

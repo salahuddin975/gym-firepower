@@ -10,6 +10,7 @@ from numpy.linalg import det, norm
 from gym import logger
 from gym.utils import seeding
 from log_writer import FireSpreadInfoWriter
+from enum import Enum
 
 
 DEFAULT_FUEL_TYPE = -3
@@ -143,7 +144,6 @@ class Grid(object):
 
     def get_current_image(self):
         temp = deepcopy(self.base_image)
-        # temp[:,:,0] = temp[:,:,0] + 50*self.state
         temp[:,:,0] = 100*self.state
         temp[:,:,1] = temp[:,:,1] - self.state*temp[:,:,1]
         return temp
@@ -153,8 +153,8 @@ class Grid(object):
         for row in range(self.rows):
             for col in range(self.cols):
                 self.grid[row][col].step()
-                if self.grid[row][col].state_ != self.grid[row][col].state:
-                    if self.grid[row][col].state_ == 1:
+                if self.grid[row][col].next_state != self.grid[row][col].state:
+                    if self.grid[row][col].next_state == 1:
                         self.burning_cells.append((row,col))
         self.burning_cells = np.array(self.burning_cells, dtype=int)
         
@@ -264,6 +264,13 @@ class Grid(object):
             return norm(P - B)
         return round(norm(cross(A-B, A-P))/norm(B-A),3)
 
+
+class CellState(Enum):
+    NOT_BURNING = 0
+    BURNING = 1
+    BURNT = 2
+
+
 class Cell(object):
     def __init__(self, row, col, fuel_type, fuel_amt, spread_probab,
                     scaling_factor, source_flag, rng):
@@ -292,21 +299,15 @@ class Cell(object):
         Assumption: the time step of fire spread is greater than power system step
         size and is a integer multiple
         '''
+
         self.scaling_factor = scaling_factor
-        assert scaling_factor > 0 and isinstance(scaling_factor, int), \
-        "Scaling factor should be an integer greater than 0"
-        
         self.neighbors = []
-        # transition probability to move from not burning to burning
-        self.pho = 0
-        self.B = False
-        self.F = self.init_amt
+        self.fuel_amount = self.init_amt
         self.state = 0
-        self.state_ = 0
+        self.next_state = 0
         self.counter = 1
         self.source_flag = source_flag
         self.set_source()
-        # print("Cell ({},{}) has spread probability of {}".format(self.row, self.col, self.spread_probab))
 
     def register_neighbors(self, neighbors):
         self.neighbors = neighbors
@@ -314,50 +315,33 @@ class Cell(object):
     def step(self):
         if self.fuel_type != 0:
 
-            if self.state == 0: # 0 -> not burning
-                assert self.F == self.init_amt, \
-                    "Cannot be in this state if fuel is less than max"
-                assert not self.B, "Cannot be in this state if B is True" 
+            if self.state == 0:           # 0 -> not burning
                 if self.counter == self.scaling_factor:
                     self.counter = 1
                     pho = 1
                     for neighbor in self.neighbors:
-                        # only burning neighbors can contribute
-                        if neighbor.state == 1 : 
+                        if neighbor.state == 1 :
                             pho *= 1 - neighbor.spread_probab
-                    self.pho = 1 - pho
+                    pho = 1 - pho
                     
                     roll_dice = self.rng.uniform(0, 1)
-                    if roll_dice <= self.pho:
-                        self.B = True
-                        self.state_ = 1
-                    else:
-                        self.B = False
-                    # print("Cell ({}, {}) rolled a dice with rho {} and got {}".format(self.row, self.col, self.pho, roll_dice))
+                    if roll_dice <= pho:
+                        self.next_state = 1
                 else:
                     self.counter += 1
-
-            elif self.state == 1: # 1 -> burning 
-                # print("Cell ({}, {}) is burning".format(self.row, self.col))
-                assert self.B, " Cannot be in this state if B is False"
-                assert 0 < self.F <= self.init_amt, \
-                    "Cannot be in this state if fuel is less than 0"
-                self.F = self.F + self.fuel_type
-                if self.F <= 0:
-                    self.state_ = 2
-            
-            elif self.state == 2: # 2 -> burnt
+            elif self.state == 1:            # 1 -> burning
+                self.fuel_amount = self.fuel_amount + self.fuel_type
+                if self.fuel_amount <= 0:
+                    self.next_state = 2
+            elif self.state == 2:            # 2 -> burnt
                 pass
-            
             else:
                 assert False, "Cannot reach here"
         
     def reset(self, source_flag):
-        self.pho = 0
-        self.B = False
-        self.F = self.init_amt
+        self.fuel_amount = self.init_amt
         self.state = 0
-        self.state_ = 0
+        self.next_state = 0
         self.counter = 1
         self.source_flag = source_flag
         self.set_source()
@@ -367,18 +351,14 @@ class Cell(object):
         return self.state
     
     def update_state(self):
-        self.state = self.state_
+        self.state = self.next_state
         return self.state
     
     def set_source(self):
         if self.source_flag:
             assert self.fuel_type != 0, "nonflammable cell cannot be set up as fuel"
-            self.B =  True
             self.state = 1
-            self.state_ = 1
-
-    def update_source_flag(self, val):
-        self.source_flag = val
+            self.next_state = 1
 
 
 class FireSpread(object):

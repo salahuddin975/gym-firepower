@@ -325,9 +325,7 @@ class Cell(object):
                     self.next_state = CellState.BURNT
             elif self.state == CellState.BURNT:
                 pass
-            else:
-                assert False, "Cannot reach here"
-        
+
     def reset(self, source_flag):
         self.fuel_amount = self.init_amt
         self.state = CellState.NOT_BURNING

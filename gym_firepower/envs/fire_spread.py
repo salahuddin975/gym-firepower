@@ -287,20 +287,11 @@ class Cell(object):
         assert fuel_amt >= 0, "fuel amount cannot be negative"
         assert (not (fuel_type < 0) or (fuel_amt > 0)), "Fuel amount should be more \
                                             than 0 if the type of cell is flammable" 
-        self.init_amt = fuel_amt
-        '''
-        spread prob, P(x-> neghbors) defines the probability of spreading fire from 
-        cell x to each neighbor.
-        '''
-        self.spread_probab = spread_probab
-        '''
-        scaling factor determines the step size of the fire-spread model wrt power
-        system or agents step size
-        Assumption: the time step of fire spread is greater than power system step
-        size and is a integer multiple
-        '''
 
-        self.scaling_factor = scaling_factor
+        self.init_amt = fuel_amt
+        self.spread_probab = spread_probab     # probability of spreading fire from cell x to each neighbor.
+        self.scaling_factor = scaling_factor   # determines number of steps of fire model == number of steps power model
+
         self.neighbors = []
         self.fuel_amount = self.init_amt
         self.state = CellState.NOT_BURNING
@@ -314,7 +305,6 @@ class Cell(object):
     
     def step(self):
         if self.fuel_type != 0:
-
             if self.state == CellState.NOT_BURNING:
                 if self.counter == self.scaling_factor:
                     self.counter = 1

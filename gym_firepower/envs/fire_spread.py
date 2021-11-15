@@ -9,6 +9,7 @@ from numpy import arccos, array, dot, pi, cross
 from numpy.linalg import det, norm
 from gym import logger
 from gym.utils import seeding
+from log_writer import FireSpreadInfoWriter
 
 
 DEFAULT_FUEL_TYPE = -3
@@ -378,26 +379,36 @@ class Cell(object):
 
     def update_source_flag(self, val):
         self.source_flag = val
-    
+
+
 class FireSpread(object):
-    def __init__(self, conf_file, factor, rng):
+    def __init__(self, conf_file, factor, rng, save_fire_spread_info=False, seed=50):
         self.grid = Grid(conf_file, factor, rng)
-    
+
+        self._save_fire_spread_info = save_fire_spread_info
+        if self._save_fire_spread_info:
+            self.fire_stats_writer = FireSpreadInfoWriter("./", seed, DEFAULT_SPREAD_PROBAB)
+
     def get_state(self):
         return self.grid.get_state()
-    
+
     def get_reduced_state(self):
-        return self.grid.get_reduced_state()
-    
+        fire_state = self.grid.get_reduced_state()
+        if self._save_fire_spread_info:
+            self.fire_stats_writer.add_info(fire_state)
+        return fire_state
+
     def step(self):
         self.grid.step()
-    
+
     def reset(self):
         self.grid.reset()
+        if self._save_fire_spread_info:
+            self.fire_stats_writer.reset()
 
     def get_current_image(self):
         return self.grid.get_current_image()
-    
+
     def get_distance_from_fire(self):
         return self.grid.get_distance_from_fire()
 
@@ -407,7 +418,7 @@ if __name__ == "__main__":
     seed = 50
 
     np_random, seed = seeding.np_random(seed)
-    fire_spread = FireSpread(conf_file, 1, np_random)
+    fire_spread = FireSpread(conf_file, 1, np_random, True, seed)
 
     num_of_episode = 100
     num_of_steps = 300

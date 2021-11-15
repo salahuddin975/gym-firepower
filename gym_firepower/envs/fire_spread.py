@@ -303,8 +303,8 @@ class Cell(object):
         self.scaling_factor = scaling_factor
         self.neighbors = []
         self.fuel_amount = self.init_amt
-        self.state = 0
-        self.next_state = 0
+        self.state = CellState.NOT_BURNING
+        self.next_state = CellState.NOT_BURNING
         self.counter = 1
         self.source_flag = source_flag
         self.set_source()
@@ -315,50 +315,50 @@ class Cell(object):
     def step(self):
         if self.fuel_type != 0:
 
-            if self.state == 0:           # 0 -> not burning
+            if self.state == CellState.NOT_BURNING:
                 if self.counter == self.scaling_factor:
                     self.counter = 1
                     pho = 1
-                    for neighbor in self.neighbors:
-                        if neighbor.state == 1 :
+                    for neighbor in self.neighbors:           #probability increases if more neighbors in burning state
+                        if neighbor.state == CellState.BURNING:
                             pho *= 1 - neighbor.spread_probab
                     pho = 1 - pho
                     
                     roll_dice = self.rng.uniform(0, 1)
                     if roll_dice <= pho:
-                        self.next_state = 1
+                        self.next_state = CellState.BURNING
                 else:
                     self.counter += 1
-            elif self.state == 1:            # 1 -> burning
+            elif self.state == CellState.BURNING:
                 self.fuel_amount = self.fuel_amount + self.fuel_type
                 if self.fuel_amount <= 0:
-                    self.next_state = 2
-            elif self.state == 2:            # 2 -> burnt
+                    self.next_state = CellState.BURNT
+            elif self.state == CellState.BURNT:
                 pass
             else:
                 assert False, "Cannot reach here"
         
     def reset(self, source_flag):
         self.fuel_amount = self.init_amt
-        self.state = 0
-        self.next_state = 0
+        self.state = CellState.NOT_BURNING
+        self.next_state = CellState.NOT_BURNING
         self.counter = 1
         self.source_flag = source_flag
         self.set_source()
-        return self.state
+        return self.state.value
 
     def get_state(self):
-        return self.state
+        return self.state.value
     
     def update_state(self):
         self.state = self.next_state
-        return self.state
+        return self.state.value
     
     def set_source(self):
         if self.source_flag:
             assert self.fuel_type != 0, "nonflammable cell cannot be set up as fuel"
-            self.state = 1
-            self.next_state = 1
+            self.state = CellState.BURNING
+            self.next_state = CellState.BURNING
 
 
 class FireSpread(object):

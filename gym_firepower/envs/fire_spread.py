@@ -40,7 +40,7 @@ class Grid(object):
 
         self.rows = int(args["rows"])
         self.cols = int(args["cols"])
-        self.state = np.full((self.rows, self.cols), 0)
+        self.state = np.full((self.rows, self.cols), CellState.NOT_BURNING)
 
         self.fuel_amt = np.full((self.rows, self.cols), DEFAULT_FUEL_AMT)
         self.fuel_type = np.full((self.rows, self.cols), DEFAULT_FUEL_TYPE)
@@ -115,7 +115,7 @@ class Grid(object):
         params["spread_probab"]= self.spread_probab[row,col]
         if (row,col) in self.sources:
             params["source_flag"] = True
-            self.state[row, col] = 1
+            self.state[row, col] = CellState.BURNING
         else:
             params["source_flag"] = False
         return params
@@ -206,7 +206,7 @@ class Grid(object):
         for bus in self.bus_ids:
             row, col = self.bus_ids[bus]
             state = self.state[row, col]
-            if state == 0:
+            if state == CellState.NOT_BURNING:
                 bus_dict[bus] = 1 # 1 implies bus is in service
             else:
                 bus_dict[bus] = 0 # 0 implies bus is out of service
@@ -217,7 +217,7 @@ class Grid(object):
             answer = 1
             for cell_id in cell_ids:
                 state = self.state[cell_id[0], cell_id[1]]
-                if state != 0:
+                if state != CellState.NOT_BURNING:
                     answer = 0
                     break
             branch_dict[(from_bus, to_bus)] = answer
@@ -326,14 +326,14 @@ class Cell(object):
         self.counter = 1
         self.source_flag = source_flag
         self.set_source()
-        return self.state.value
+        return self.state
 
     def get_state(self):
-        return self.state.value
+        return self.state
     
     def update_state(self):
         self.state = self.next_state
-        return self.state.value
+        return self.state
     
     def set_source(self):
         if self.source_flag:

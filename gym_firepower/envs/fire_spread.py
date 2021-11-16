@@ -28,36 +28,35 @@ class Grid(object):
         self._register_neighboring_cells()
 
     def _parse_geo_file(self, geo_file):
-        args = {"cols": 40, "rows": 40, "sources": [[5, 5]], 
-                "seed": 30, "random_source":False, "num_sources":1}
-
+        args = {"cols": 40, "rows": 40, "sources": [[5, 5]], "seed": 30, "random_source":False, "num_sources":1}
         with open(geo_file, 'r') as config_file:
             args.update(json.load(config_file))
 
         self.rows = int(args["rows"])
         self.cols = int(args["cols"])
-        self.random_source = args["random_source"]
-        self.boxes = args["boxes"]
-        self.num_sources = args["num_sources"]
+        self.state = np.full((self.rows, self.cols), 0)
+
         self.fuel_amt = np.full((self.rows, self.cols), DEFAULT_FUEL_AMT)
         self.fuel_type = np.full((self.rows, self.cols), DEFAULT_FUEL_TYPE)
         self.spread_probab = np.full((self.rows, self.cols), DEFAULT_SPREAD_PROBAB)
+        self._update_matrices_based_on_configuration_file(args)
+
+        self.random_source = args["random_source"]
+        self.boxes = args["boxes"]
+        self.num_sources = args["num_sources"]
         self.fire_source = np.full((self.rows, self.cols), False)
-        self.state = np.full((self.rows, self.cols), 0)
 
         self.sources = [ (arg[1], arg[0]) for arg in args["sources"] ]
         for src in self.sources:
             self.fire_source[src[0], src[1]] = True
 
         self.branches = args["branches"]
-        self.critical_cells = self._identify_critical_cells(
-            args["bus_ids"], args["branches"])
-        self._create_matrices(args)
+        self.critical_cells = self._identify_critical_cells(args["bus_ids"], args["branches"])
+
         self._create_base_image(args["fuel_type"])
         self.burning_cells = np.array([ cell for cell in self.sources], dtype=int)
         self.fire_distance = {"nodes": {}, "branches": {} }
         self._calculate_distance_from_fire()
-
 
     def _identify_critical_cells(self, bus_ids, branches):
         assert len(bus_ids) > 1, "There should be atleat 2 buses"
@@ -76,16 +75,16 @@ class Grid(object):
                 self.branch_ids[branch[0]].update({branch[1]: points})
         return cells
     
-    def _create_matrices(self, args):
+    def _update_matrices_based_on_configuration_file(self, args):
         if "fuel_type" in args.keys():
-            self._create_matrix(args["fuel_type"], self.fuel_type)
+            self._update_with_configuration(args["fuel_type"], self.fuel_type)
         if "fuel_amt" in args.keys():
-            self._create_matrix(args["fuel_amt"], self.fuel_amt)
+            self._update_with_configuration(args["fuel_amt"], self.fuel_amt)
         if "spread_probab" in args.keys():
-            self._create_matrix(args["spread_probab"], self.spread_probab)
+            self._update_with_configuration(args["spread_probab"], self.spread_probab)
     
-    def _create_matrix(self, sparse_matrix, full_matrix):
-        for col, row, val in sparse_matrix:
+    def _update_with_configuration(self, conf_sparse_matrix, full_matrix):
+        for col, row, val in conf_sparse_matrix:
             col = int(col)
             row = int(row)
             full_matrix[row,col] = val
@@ -124,8 +123,7 @@ class Grid(object):
                 for delta in delta_row_col:
                     new_row = row + delta[0]
                     new_col = col + delta[1]
-                    if 0 <= new_row < self.rows and \
-                        0 <= new_col < self.cols:
+                    if 0 <= new_row < self.rows and 0 <= new_col < self.cols:
                         neighbors.append(self.grid[new_row][new_col])
                 self.grid[row][col].register_neighbors(neighbors)
     

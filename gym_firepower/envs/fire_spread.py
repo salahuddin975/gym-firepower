@@ -18,6 +18,12 @@ DEFAULT_FUEL_AMT = 100
 DEFAULT_SPREAD_PROBAB = 0.3
 
 
+class CellState(Enum):
+    NOT_BURNING = 0
+    BURNING = 1
+    BURNT = 2
+
+
 class Grid(object):
     def __init__(self, geo_file, scaling_factor, rng):
         self.rng = rng
@@ -179,7 +185,6 @@ class Grid(object):
                 assert False, "at least one box should be defined"
             for box in self.boxes:
                 num_sources = self.num_sources
-                sources = []
                 max_row = max(box[1][0], box[0][0])
                 min_row = min(box[1][0], box[0][0])
                 max_col = max(box[1][1], box[0][1])
@@ -187,13 +192,11 @@ class Grid(object):
                 while (num_sources > 0):
                     row = self.rng.randint(min_row, max_row)
                     col = self.rng.randint(min_col, max_col)
-                    if self.grid[row][col].fuel_type !=0 and \
-                        [row, col] not in self.critical_cells:
+                    if self.grid[row][col].fuel_type !=0 and [row, col] not in self.critical_cells:
                         self.sources.append((row, col))
                         self.fire_source[row][col] = True
                         num_sources -= 1
-          
-    
+
     def get_state(self):
         return deepcopy(self.state)
     
@@ -230,8 +233,7 @@ class Grid(object):
             branch_dict = self.fire_distance["branches"]
             for bus in self.bus_ids:
                 bus_idx = np.array(self.bus_ids[bus])
-                min_dist = min([round(np.linalg.norm(cell - bus_idx), 3)
-                                for cell in self.burning_cells])
+                min_dist = min([round(np.linalg.norm(cell - bus_idx), 3) for cell in self.burning_cells])
                 try:
                     if bus_dict[bus] > min_dist:
                         bus_dict[bus] = min_dist
@@ -241,8 +243,7 @@ class Grid(object):
             for branch in self.branches:
                 from_bus = int(branch[0])
                 to_bus = int(branch[1])
-                min_dist = min([ self._calculate_distance(
-                    self.bus_ids[from_bus], self.bus_ids[to_bus], cell) 
+                min_dist = min([ self._calculate_distance(self.bus_ids[from_bus], self.bus_ids[to_bus], cell)
                     for cell in self.burning_cells])
                 try:
                     if branch_dict[(from_bus, to_bus)] > min_dist:
@@ -261,12 +262,6 @@ class Grid(object):
         if arccos(dot((P - B) / norm(P - B), (A - B) / norm(A - B))) > pi / 2:
             return norm(P - B)
         return round(norm(cross(A-B, A-P))/norm(B-A),3)
-
-
-class CellState(Enum):
-    NOT_BURNING = 0
-    BURNING = 1
-    BURNT = 2
 
 
 class Cell(object):

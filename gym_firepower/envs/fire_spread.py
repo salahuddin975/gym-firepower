@@ -158,7 +158,7 @@ class Grid(object):
             for col in range(self.cols):
                 self.grid[row][col].step()
                 if self.grid[row][col].next_state != self.grid[row][col].state:
-                    if self.grid[row][col].next_state == 1:
+                    if self.grid[row][col].next_state == CellState.BURNING:
                         self.burning_cells.append((row,col))
         self.burning_cells = np.array(self.burning_cells, dtype=int)
         

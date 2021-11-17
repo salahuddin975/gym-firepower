@@ -21,12 +21,13 @@ class FirePowerEnv(gym.Env):
     def __init__(self, geo_file=None, network_file=None, scaling_factor=None,
                  non_convergence_penalty=None, protection_action_penalty=None,
                  active_line_removal_penalty=None, sampling_duration=1/6, num_tunable_gen=10, seed=None):
+
+        self.np_random, seed = seeding.np_random(seed)
         if geo_file is None:
             assert False, 'Configuration file for fire spreading model is missing'
         if network_file is None:
             assert False, 'Power system network file is missing'
 
-        self.seed(seed)
         self.geo_file = geo_file
         self.network_file = network_file
         self.scaling_factor = scaling_factor
@@ -82,10 +83,6 @@ class FirePowerEnv(gym.Env):
         self.fire_spread_model.reset()
         self.power_sys_model.reset()
         return self._get_state()
-
-    def seed(self, seed=None):
-        self.np_random, seed = seeding.np_random(seed)
-        return [seed]
 
     def render(self, mode='human'):
         img = self.fire_spread_model.get_current_image()

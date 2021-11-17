@@ -18,7 +18,7 @@ from copy import deepcopy
 class FirePowerEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array']}
 
-    def __init__(self, geo_file=None, network_file=None, scaling_factor=None,
+    def __init__(self, geo_file=None, network_file=None, scaling_factor=1,
                  non_convergence_penalty=None, protection_action_penalty=None,
                  active_line_removal_penalty=None, sampling_duration=1/6, num_tunable_gen=10, seed=None):
 

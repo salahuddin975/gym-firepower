@@ -19,67 +19,56 @@ pp = PrettyPrinter(compact=True, depth=3)
 
 class PowerOperations(object):
     def __init__(self, ppc_int, initial_fire_state, sampling_duration, num_tunable_generator):
-        # Sampling interval
         assert sampling_duration > 0, "Sampling duration should be a positive number"
         self.sampling_duration = sampling_duration
-        # This ppc is based on the internal numbering
-        self.ppc_int = ppc_int
-        # This ppc is based on external numbering
-        self.ppc_ext = int2ext(ppc_int)
+
+        self.ppc_int = ppc_int                 # This ppc is based on the internal numbering
+        self.ppc_ext = int2ext(ppc_int)        # This ppc is based on external numbering
+
         # Initial Load Flow based on internal numbering
         self.initial_load_flow = rundcpf(self.ppc_ext)
         if self.initial_load_flow[1]:
             self.initial_load_flow = ext2int(self.initial_load_flow[0])
         else:
             raise Exception("Unsuccessful load flow calculation")
-        # Number of tunable generators
-        assert num_tunable_generator <= self.ppc_int["gen"].shape[0], \
-            "Number of tunable generators should be less than total generators"
+
         self.num_tunable_generator = num_tunable_generator
-        # Number of buses
-        self.num_bus = self.ppc_int["bus"].shape[0]
-        # Number of branches
-        self.num_branch = self.ppc_int["branch"].shape[0]
-        # List of 'from' buses (one end of a transmission line)
-        self.from_buses = self.ppc_int["branch"][:, F_BUS]
-        self.from_buses = self.from_buses.astype('int')
-        # List of 'to' buses (other end of a transmission line) 
-        self.to_buses = self.ppc_int["branch"][:, T_BUS]
-        self.to_buses = self.to_buses.astype('int')
-        # List of upper threshold of load demand on each bus
-        self.p_load_upper = self.ppc_int["bus"][:,
-                                PD] / self.ppc_int["baseMVA"]
-        # Portion of a load at bus thats critical
-        self.non_crtitcal_fractional = self.ppc_int["noncrticalfrac"]
-        # Weight associated with critical, non-critical load
-        self.weights = self.ppc_int["weights"]
-        # Number of generators
-        self.num_gen = self.ppc_int["gen"].shape[0]
+        self.num_bus = self.ppc_int["bus"].shape[0]                   # Number of buses
+        self.num_branch = self.ppc_int["branch"].shape[0]             # Number of branches
+
+        self.from_buses = self.ppc_int["branch"][:, F_BUS].astype('int')           # List of 'from' buses
+        self.to_buses = self.ppc_int["branch"][:, T_BUS].astype('int')             # List of 'to' buses
+
+        self.p_load_upper = self.ppc_int["bus"][:, PD] / self.ppc_int["baseMVA"]   # List of upper threshold of load demand on each bus
+        self.non_crtitcal_fractional = self.ppc_int["noncrticalfrac"]    # Portion of a load at bus thats critical
+        self.weights = self.ppc_int["weights"]                 # Weight associated with critical, non-critical load
+
         self.gen_buses = self.ppc_int["gen"][:,0]
         self.gen_buses = np.vectorize(lambda x: int(x))(self.gen_buses)
-        # Creating ybus
-        self._cretae_ybus()
+
+        self._cretae_ybus()        # Creating ybus
         self.B = -1j * self.ybus
-        # ommitting the imaginary part and converting to float
-        self.B = self.B.astype('float64')
+        self.B = self.B.astype('float64')       # ommitting the imaginary part and converting to float
+
         self.initial_model_text = initial_model
         self.run_time_model_text = run_time_model
+
         self.initial_fire_state = initial_fire_state
         self.initial_action = {"generator_injection": np.zeros(self.num_tunable_generator, dtype=np.float32),
                                "branch_status": np.ones(self.num_branch, dtype=int),
                                "bus_status": np.ones(self.num_bus, dtype=int),
                                "generator_selector": np.array([self.num_bus]*self.num_tunable_generator, dtype=int)}
-        # Identify artifacts location
-        path = pathlib.Path(__file__).parent.absolute()
+
+        path = pathlib.Path(__file__).parent.absolute()               # Identify artifacts location
         self.gams_dir = os.path.join(path, "gams", "temp", "pid_{}".format(os.getpid()) )
         try:
             os.makedirs(self.gams_dir, exist_ok=True)
         except OSError:
             assert False, "Cannot create temporary directory"
 
-        self.ws = GamsWorkspace(working_directory=self.gams_dir,
-                                debug=DebugLevel.Off)
+        self.ws = GamsWorkspace(working_directory=self.gams_dir, debug=DebugLevel.Off)
         self.db = self.ws.add_database()
+
         self._define_problem()
         # self._initialize()
 

@@ -203,38 +203,26 @@ class PowerOperations(object):
         self.problem.run(opt, databases=self.db)
 
     def _define_problem(self):
-        self.i = self.db.add_set(
-            "i", 1, "Set of nodes")
+        self.i = self.db.add_set("i", 1, "Set of nodes")
+        self.c = self.db.add_set("c", 1,  "Load divided based on criticality")
         
-        self.c = self.db.add_set(
-            "c", 1,  "Load divided based on criticality")
-        
-        self.PGLbarT = self.db.add_parameter_dc(
-            "PGLbarT", [self.i], "Power generation lower limit")
-        self.PGUbarT = self.db.add_parameter_dc(
-            "PGUbarT", [self.i], "Power generation upper limit")
-        self.ThetaLbar = self.db.add_parameter_dc(
-            "ThetaLbar", [self.i], "Power angle lower limit")
-        self.ThetaUbar = self.db.add_parameter_dc(
-            "ThetaUbar", [self.i], "Power angle upper limit")
-        self.B_ = self.db.add_parameter_dc(
-            "B", [self.i, self.i], "Admittance matrix")
-        self.PLoad = self.db.add_parameter_dc(
-            "PLoad", [self.i], "Load value")
-        self.PLbar = self.db.add_parameter_dc(
-            "PLbar", [self.i, self.i], "Line Flow Limits")
-        self.LineStat = self.db.add_parameter_dc(
-            "LineStat", [self.i, self.i], "Line Status")
-        self.Rampbar = self.db.add_parameter_dc(
-            "Rampbar", [self.i], "Ramp rate limit")
-        self.IntDur = self.db.add_parameter(
-            "IntDur", 0, "Duration of a typical interval")
-        self.CritFrac = self.db.add_parameter_dc(
-            "CritFrac", [self.i, self.c], "Fraction of loads critical and non-critical")
-        self.CritVal = self.db.add_parameter_dc(
-            "CritVal", [self.c], "Value of the critical load")
-        self.PGBegin = self.db.add_parameter_dc(
-            "PGBegin", [self.i], "Generation at the begining")
+        self.PGLbarT = self.db.add_parameter_dc("PGLbarT", [self.i], "Power generation lower limit")
+        self.PGUbarT = self.db.add_parameter_dc("PGUbarT", [self.i], "Power generation upper limit")
+
+        self.ThetaLbar = self.db.add_parameter_dc("ThetaLbar", [self.i], "Power angle lower limit")
+        self.ThetaUbar = self.db.add_parameter_dc("ThetaUbar", [self.i], "Power angle upper limit")
+
+        self.B_ = self.db.add_parameter_dc("B", [self.i, self.i], "Admittance matrix")
+        self.PLoad = self.db.add_parameter_dc("PLoad", [self.i], "Load value")
+        self.PLbar = self.db.add_parameter_dc("PLbar", [self.i, self.i], "Line Flow Limits")
+
+        self.LineStat = self.db.add_parameter_dc("LineStat", [self.i, self.i], "Line Status")
+        self.Rampbar = self.db.add_parameter_dc("Rampbar", [self.i], "Ramp rate limit")
+        self.IntDur = self.db.add_parameter("IntDur", 0, "Duration of a typical interval")
+
+        self.CritFrac = self.db.add_parameter_dc("CritFrac", [self.i, self.c], "Fraction of loads critical and non-critical")
+        self.CritVal = self.db.add_parameter_dc("CritVal", [self.c], "Value of the critical load")
+        self.PGBegin = self.db.add_parameter_dc("PGBegin", [self.i], "Generation at the begining")
 
     def _solve_initial_model(self):        
         # self._define_problem()

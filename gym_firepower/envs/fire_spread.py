@@ -19,7 +19,7 @@ DEFAULT_SPREAD_PROBAB = 0.3
 
 
 class CellState(Enum):
-    NOT_BURNING = 0
+    UNBURNT = 0
     BURNING = 1
     BURNT = 2
 
@@ -40,7 +40,7 @@ class Grid(object):
 
         self.rows = int(args["rows"])
         self.cols = int(args["cols"])
-        self.state = np.full((self.rows, self.cols), CellState.NOT_BURNING)
+        self.state = np.full((self.rows, self.cols), CellState.UNBURNT)
 
         self.fuel_amt = np.full((self.rows, self.cols), DEFAULT_FUEL_AMT)
         self.fuel_type = np.full((self.rows, self.cols), DEFAULT_FUEL_TYPE)
@@ -206,7 +206,7 @@ class Grid(object):
         for bus in self.bus_ids:
             row, col = self.bus_ids[bus]
             state = self.state[row, col]
-            if state == CellState.NOT_BURNING:
+            if state == CellState.UNBURNT:
                 bus_dict[bus] = 1 # 1 implies bus is in service
             else:
                 bus_dict[bus] = 0 # 0 implies bus is out of service
@@ -217,7 +217,7 @@ class Grid(object):
             answer = 1
             for cell_id in cell_ids:
                 state = self.state[cell_id[0], cell_id[1]]
-                if state != CellState.NOT_BURNING:
+                if state != CellState.UNBURNT:
                     answer = 0
                     break
             branch_dict[(from_bus, to_bus)] = answer
@@ -287,8 +287,8 @@ class Cell(object):
 
         self.neighbors = []
         self.fuel_amount = self.init_amt
-        self.state = CellState.NOT_BURNING
-        self.next_state = CellState.NOT_BURNING
+        self.state = CellState.UNBURNT
+        self.next_state = CellState.UNBURNT
         self.counter = 1
         self.source_flag = source_flag
         self.set_source()
@@ -298,7 +298,7 @@ class Cell(object):
     
     def step(self):
         if self.fuel_type != 0:
-            if self.state == CellState.NOT_BURNING:
+            if self.state == CellState.UNBURNT:
                 if self.counter == self.scaling_factor:
                     self.counter = 1
                     pho = 1
@@ -321,8 +321,8 @@ class Cell(object):
 
     def reset(self, source_flag):
         self.fuel_amount = self.init_amt
-        self.state = CellState.NOT_BURNING
-        self.next_state = CellState.NOT_BURNING
+        self.state = CellState.UNBURNT
+        self.next_state = CellState.UNBURNT
         self.counter = 1
         self.source_flag = source_flag
         self.set_source()

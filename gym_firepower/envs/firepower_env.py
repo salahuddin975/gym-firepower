@@ -105,43 +105,16 @@ class FirePowerEnv(gym.Env):
         self.fire_spread_model.step()
         fire_state = self.fire_spread_model.get_reduced_state()
         self.power_sys_model.step(action, fire_state)
-    
 
-    # def _get_reward(self):
-    #     if self.power_sys_model.has_converged:
-    #         load_loss = -1 * (self.ppc["baseMVA"] * self.power_sys_model.get_load_loss())
-    #         protection_penalty = self.power_sys_model.get_protection_operation_count() * self.pa_penalty
-    #         active_line_removal = -1 * self.power_sys_model.get_active_line_removal_penalty()
-
-    #         print("load loss: ", load_loss)
-    #         # print("protection_penalty: ", protection_penalty)
-    #         print("active live line: ", active_line_removal)
-
-    #         return (load_loss + protection_penalty + active_line_removal, load_loss)
-    #     else:
-    #         return (self.nc_penalty, 0)
-    
     def _get_reward(self):
         if self.power_sys_model.has_converged:
             load_loss = -1 * (self.ppc["baseMVA"] * self.power_sys_model.get_load_loss())
             protection_penalty = self.power_sys_model.get_protection_operation_count() * self.pa_penalty
             active_line_removal = -1 * self.power_sys_model.get_active_line_removal_penalty()
 
-            # print("load loss: ", load_loss)
-            # print("protection_penalty: ", protection_penalty)
-            # print("active live line: ", active_line_removal)
-
-            return (load_loss + protection_penalty + active_line_removal, load_loss)
-
-            # return (-1*(self.ppc["baseMVA"]*self.power_sys_model.get_load_loss()) + \
-            #     self.power_sys_model.get_protection_operation_count() * \
-            #     self.pa_penalty + -1*self.power_sys_model.get_active_line_removal_penalty(),
-            #         -1*(self.ppc["baseMVA"] *
-            #             self.power_sys_model.get_load_loss()) ) # * \
-            #     # self.la_penalty
+            return load_loss + protection_penalty + active_line_removal, load_loss
         else:
             return (self.nc_penalty, 0)
-
 
     def _get_state(self):
         power_state = self.power_sys_model.get_state()

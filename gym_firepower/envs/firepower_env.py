@@ -26,51 +26,57 @@ class FirePowerEnv(gym.Env):
         if network_file is None:
             assert False, 'Power system network file is missing'
 
-        self.sampling_duration = sampling_duration
-        self.num_tunable_gen = num_tunable_gen
         self.seed(seed)
-        self.viewer = None
-        self.scaling_factor = scaling_factor
         self.geo_file = geo_file
         self.network_file = network_file
-        self.ppc = loadcase(network_file)
-        PowerOperations.mergeGenerators(self.ppc)
-        PowerOperations.mergeBranches(self.ppc)
-        assert num_tunable_gen <= self.ppc["gen"].shape[0], \
-            "Number of tunable generators should be less than total generators"
-        self.ppc = ext2int(self.ppc)
+        self.scaling_factor = scaling_factor
+        self.sampling_duration = sampling_duration
+        self.num_tunable_gen = num_tunable_gen
+
+        ppc = loadcase(network_file)
+        PowerOperations.mergeGenerators(ppc)
+        PowerOperations.mergeBranches(ppc)
+        self.ppc = ext2int(ppc)
+        assert num_tunable_gen <= self.ppc["gen"].shape[0], "Number of tunable generators should be less than total generators"
+
         self.fire_spread_model = FireSpread(geo_file, scaling_factor, self.np_random)
-        self.power_sys_model = PowerOperations(self.ppc, 
-                                    self.fire_spread_model.get_reduced_state(),
+        self.power_sys_model = PowerOperations(self.ppc, self.fire_spread_model.get_reduced_state(),
                                     sampling_duration, num_tunable_gen)
-        self.status = True
-        self.total_load = np.sum(ceil(sum(self.ppc['bus'][:, PD])))
-        if non_convergence_penalty is None:
-            elements = self.ppc['bus'].shape[0] + self.ppc['branch'].shape[0]
-            self.nc_penalty = -10*elements*self.total_load
-        else:
-            self.nc_penalty = non_convergence_penalty
-        if protection_action_penalty is None:
-            self.pa_penalty = -2*self.total_load
-        else:
-            self.pa_penalty = protection_action_penalty
-        if active_line_removal_penalty is None:
-            self.la_penalty = -1*self.total_load
-        else:
-            self.la_penalty = active_line_removal_penalty
-        
-        assert self.pa_penalty < 0 and self.nc_penalty < 0 and self.la_penalty < 0, "Penalties should be negative"
-        assert self.la_penalty > self.pa_penalty > self.nc_penalty, "Non convergence must be penalized more \
-        strongly than automatic protection action followed by active line removal action"
+
+        self.viewer = None
+        self._set_penalties(non_convergence_penalty, protection_action_penalty, active_line_removal_penalty)
         self.observation_space = self._create_observation_space()
         self.action_space = self._create_action_space()
 
+    def _set_penalties(self, non_convergence_penalty, protection_action_penalty, active_line_removal_penalty):
+        self.total_load = np.sum(ceil(sum(self.ppc['bus'][:, PD])))
+
+        if non_convergence_penalty is None:
+            elements = self.ppc['bus'].shape[0] + self.ppc['branch'].shape[0]
+            self.nc_penalty = -10 * elements * self.total_load
+        else:
+            self.nc_penalty = non_convergence_penalty
+
+        if protection_action_penalty is None:
+            self.pa_penalty = -2 * self.total_load
+        else:
+            self.pa_penalty = protection_action_penalty
+
+        if active_line_removal_penalty is None:
+            self.la_penalty = -1 * self.total_load
+        else:
+            self.la_penalty = active_line_removal_penalty
+
+        assert self.pa_penalty < 0 and self.nc_penalty < 0 and self.la_penalty < 0, "Penalties should be negative"
+        assert self.la_penalty > self.pa_penalty > self.nc_penalty, "Non convergence must be penalized more \
+        strongly than automatic protection action followed by active line removal action"
+
     def step(self, action):
         self._take_action(action)
-        self.status = self._get_status()
+        status = self._get_status()
         reward = self._get_reward()
         observation = self._get_state()
-        return observation, reward, self.status, {}
+        return observation, reward, status, {}
     
     def reset(self):
         self.fire_spread_model.reset()
@@ -192,35 +198,28 @@ class FirePowerEnv(gym.Env):
         gen_upper_bound = np.zeros((num_bus,), np.float32)
         for gen in self.ppc["gen"]:
             gen_upper_bound[int(gen[GEN_BUS])] = gen[PMAX]/self.ppc["baseMVA"]
-        gen_space = spaces.Box(
-            low=gen_lower_bound, high=gen_upper_bound, shape=(num_bus, ))
-        
-        
+        gen_space = spaces.Box(low=gen_lower_bound, high=gen_upper_bound, shape=(num_bus, ))
+
         load_lower_bound = np.zeros((num_bus,), np.float32)
         load_upper_bound = np.array(self.ppc["bus"][:, PD]/self.ppc["baseMVA"])
-        load_space = spaces.Box(
-            low=load_lower_bound, high=load_upper_bound, shape=(num_bus, ))
+        load_space = spaces.Box(low=load_lower_bound, high=load_upper_bound, shape=(num_bus, ))
         
         theta_lower_bound = -1*(np.pi/4)*np.ones((num_bus,), np.float32)
         theta_upper_bound = (np.pi/4)*np.ones((num_bus,), np.float32)
-        theta_space = spaces.Box(
-            low=theta_lower_bound, high=theta_upper_bound, shape=(num_bus, ))
+        theta_space = spaces.Box(low=theta_lower_bound, high=theta_upper_bound, shape=(num_bus, ))
         
         # 0 -> unbunt, 1 -> burning, 2 -> burnt
-        fire_space = spaces.Box(low=0, high=2,
-                                shape=(self.fire_spread_model.grid.rows, 
+        fire_space = spaces.Box(low=0, high=2, shape=(self.fire_spread_model.grid.rows,
                                 self.fire_spread_model.grid.cols), dtype=np.uint8)
         
-        fire_distance_space = spaces.Box(low=0, 
-                                    high=np.sqrt(self.fire_spread_model.grid.rows**2 + \
+        fire_distance_space = spaces.Box(low=0, high=np.sqrt(self.fire_spread_model.grid.rows**2 + \
                                     self.fire_spread_model.grid.cols**2), 
                                     shape=(num_bus+num_branch, ), dtype=np.float32)
 
         line_flow_upper = self.ppc["branch"][:, RATE_A] / self.ppc["baseMVA"]
         line_flow_lower = -1*self.ppc["branch"][:, RATE_A] / self.ppc["baseMVA"]
         line_flow_space = spaces.Box(low=line_flow_lower, high=line_flow_upper, shape=(num_branch, ), dtype=np.float32)
-        
-        
+
         return spaces.Dict({"generator_injection": gen_space,
                             "load_demand":  load_space,
                             "theta": theta_space,

@@ -19,8 +19,8 @@ class FirePowerEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array']}
 
     def __init__(self, geo_file=None, network_file=None, scaling_factor=None,
-                non_convergence_penalty=None, protection_action_penalty=None,
-                active_line_removal_penalty=None, sampling_duration=1/6, num_tunable_gen=10, seed=None):
+                 non_convergence_penalty=None, protection_action_penalty=None,
+                 active_line_removal_penalty=None, sampling_duration=1/6, num_tunable_gen=10, seed=None):
         if geo_file is None:
             assert False, 'Configuration file for fire spreading model is missing'
         if network_file is None:
@@ -41,7 +41,7 @@ class FirePowerEnv(gym.Env):
 
         self.fire_spread_model = FireSpread(geo_file, scaling_factor, self.np_random)
         self.power_sys_model = PowerOperations(self.ppc, self.fire_spread_model.get_reduced_state(),
-                                    sampling_duration, num_tunable_gen)
+                                               sampling_duration, num_tunable_gen)
 
         self.viewer = None
         self._set_penalties(non_convergence_penalty, protection_action_penalty, active_line_removal_penalty)
@@ -77,12 +77,12 @@ class FirePowerEnv(gym.Env):
         reward = self._get_reward()
         observation = self._get_state()
         return observation, reward, status, {}
-    
+
     def reset(self):
         self.fire_spread_model.reset()
         self.power_sys_model.reset()
         return self._get_state()
-    
+
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
@@ -120,9 +120,9 @@ class FirePowerEnv(gym.Env):
         power_state = self.power_sys_model.get_state()
         fire_state = self.fire_spread_model.get_state()
         power_state.update({'fire_state': fire_state})
-        fire_distance = self.fire_spread_model.get_distance_from_fire()
-        # print(fire_distance)
+
         fire_distance_list = []
+        fire_distance = self.fire_spread_model.get_distance_from_fire()
         for bus in self.ppc["bus"][:, BUS_I]:
             fire_distance_list.append(fire_distance["nodes"][int(bus)])
         for branch in self.ppc["branch"]:
@@ -130,44 +130,38 @@ class FirePowerEnv(gym.Env):
             to_bus = int(branch[T_BUS])
             fire_distance_list.append(fire_distance["branches"][(from_bus, to_bus)])
         power_state.update({'fire_distance': fire_distance_list})
+
         return power_state
-    
+
     def _get_status(self):
         return self.power_sys_model.get_status()
 
     def _create_action_space(self):
         num_branch = self.ppc["branch"].shape[0]
         branch_space = spaces.MultiBinary(num_branch)
+
         num_bus = self.ppc["bus"].shape[0]
         bus_space = spaces.MultiBinary(num_bus)
-        # lower_bound = np.zeros(num_bus, np.float64)
+
         max_ramp = max(self.ppc["gen"][:, RAMP_10])/self.ppc["baseMVA"]
-        lower_bound = -1*self.sampling_duration*max_ramp*np.ones(
-            self.num_tunable_gen, np.float32)
-        upper_bound = self.sampling_duration*max_ramp*np.ones(
-            self.num_tunable_gen, np.float32)
-        # upper_bound = np.zeros(num_bus, np.float64)
-        # for gen in self.ppc["gen"]:
-        #     lower_bound[int(gen[GEN_BUS])] = -1*self.sampling_duration*gen[RAMP_10]/self.ppc["baseMVA"]
-        #     upper_bound[int(gen[GEN_BUS])] = self.sampling_duration*gen[RAMP_10]/self.ppc["baseMVA"]
-        gen_space = spaces.Box(
-            low=lower_bound, high=upper_bound, shape=(self.num_tunable_gen,))
-        
+        lower_bound = -1*self.sampling_duration*max_ramp*np.ones(self.num_tunable_gen, np.float32)
+        upper_bound = self.sampling_duration*max_ramp*np.ones(self.num_tunable_gen, np.float32)
+        gen_space = spaces.Box(low=lower_bound, high=upper_bound, shape=(self.num_tunable_gen,))
+
         gen_selector_space = spaces.MultiDiscrete([self.ppc["bus"].shape[0]+1]*self.num_tunable_gen)
-        
         return spaces.Dict({"generator_injection": gen_space,
                             "branch_status": branch_space,
                             "bus_status": bus_space,
                             "generator_selector":gen_selector_space})
-        
+
     def _create_observation_space(self):
         num_branch = self.ppc["branch"].shape[0]
         branch_space = spaces.MultiBinary(num_branch)
+
         num_bus = self.ppc["bus"].shape[0]
         bus_space = spaces.MultiBinary(num_bus)
 
-        # This is 0 instead of PMIN as generator can be disconnected
-        gen_lower_bound = np.zeros((num_bus,), np.float32) 
+        gen_lower_bound = np.zeros((num_bus,), np.float32)
         gen_upper_bound = np.zeros((num_bus,), np.float32)
         for gen in self.ppc["gen"]:
             gen_upper_bound[int(gen[GEN_BUS])] = gen[PMAX]/self.ppc["baseMVA"]
@@ -176,18 +170,17 @@ class FirePowerEnv(gym.Env):
         load_lower_bound = np.zeros((num_bus,), np.float32)
         load_upper_bound = np.array(self.ppc["bus"][:, PD]/self.ppc["baseMVA"])
         load_space = spaces.Box(low=load_lower_bound, high=load_upper_bound, shape=(num_bus, ))
-        
+
         theta_lower_bound = -1*(np.pi/4)*np.ones((num_bus,), np.float32)
         theta_upper_bound = (np.pi/4)*np.ones((num_bus,), np.float32)
         theta_space = spaces.Box(low=theta_lower_bound, high=theta_upper_bound, shape=(num_bus, ))
-        
+
         # 0 -> unbunt, 1 -> burning, 2 -> burnt
         fire_space = spaces.Box(low=0, high=2, shape=(self.fire_spread_model.grid.rows,
-                                self.fire_spread_model.grid.cols), dtype=np.uint8)
-        
-        fire_distance_space = spaces.Box(low=0, high=np.sqrt(self.fire_spread_model.grid.rows**2 + \
-                                    self.fire_spread_model.grid.cols**2), 
-                                    shape=(num_bus+num_branch, ), dtype=np.float32)
+                                                      self.fire_spread_model.grid.cols), dtype=np.uint8)
+
+        fire_distance_space = spaces.Box(low=0, high=np.sqrt(self.fire_spread_model.grid.rows**2 +
+                                self.fire_spread_model.grid.cols**2), shape=(num_bus+num_branch, ), dtype=np.float32)
 
         line_flow_upper = self.ppc["branch"][:, RATE_A] / self.ppc["baseMVA"]
         line_flow_lower = -1*self.ppc["branch"][:, RATE_A] / self.ppc["baseMVA"]

@@ -3,8 +3,8 @@ from gym import error, spaces, utils
 from gym.spaces.space import Space
 from gym.utils import seeding
 from pypower.idx_brch import F_BUS, T_BUS
-from gym_firepower.envs.fire_spread import FireSpread
-from gym_firepower.envs.power_sim import PowerOperations
+from fire_spread import FireSpread
+from power_sim import PowerOperations
 from pypower.loadcase import loadcase
 import numpy as np
 from math import ceil
@@ -20,18 +20,12 @@ class FirePowerEnv(gym.Env):
 
     def __init__(self, geo_file=None, network_file=None, scaling_factor=None,
                 non_convergence_penalty=None, protection_action_penalty=None,
-                active_line_removal_penalty=None, sampling_duration=1/6,
-                num_tunable_gen=10, seed=None):
-        '''
-            geo_file contains the configuration for the geographical area
-            such as size of the grid, non flammable and critical cells etc
-            network_file contains the actual structure of the power system network 
-        '''
-
+                active_line_removal_penalty=None, sampling_duration=1/6, num_tunable_gen=10, seed=None):
         if geo_file is None:
             assert False, 'Configuration file for fire spreading model is missing'
         if network_file is None:
             assert False, 'Power system network file is missing'
+
         self.sampling_duration = sampling_duration
         self.num_tunable_gen = num_tunable_gen
         self.seed(seed)

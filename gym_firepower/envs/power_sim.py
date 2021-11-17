@@ -5,7 +5,7 @@ from pypower.idx_bus import *
 from pypower.int2ext import *
 from pypower.ext2int import *
 import numpy as np
-from gym_firepower.envs.gams.models import initial_model, run_time_model
+from gams.models import initial_model, run_time_model
 from gams import *
 import sys
 import os

@@ -655,6 +655,3 @@ class PowerOperations(object):
         ppc_branch_trim.append(temp)
         ppc["branch"] = np.asarray(ppc_branch_trim)
 
-
-'''
-'''

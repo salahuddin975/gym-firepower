@@ -70,7 +70,6 @@ class PowerOperations(object):
         self.db = self.ws.add_database()
 
         self._define_problem()
-        # self._initialize()
 
     def _initialize(self):
         self.bus_status = np.ones(self.num_bus, dtype=int)             # Status of every bus
@@ -146,9 +145,9 @@ class PowerOperations(object):
     def _setup_problem(self, opt_problem):
         self.db.clear()
         for ctr in range(1, 3):
-            self.c.add_record(str(ctr))
+            self.critical_load.add_record(str(ctr))
         for ctr_bus1 in range(self.num_bus):
-            self.i.add_record(str(ctr_bus1))
+            self.nodes.add_record(str(ctr_bus1))
             self.PGLbarT.add_record(str(ctr_bus1)).value = self.pg_lower[ctr_bus1]
             self.PGUbarT.add_record(str(ctr_bus1)).value = self.pg_upper[ctr_bus1]
             self.ThetaLbar.add_record(str(ctr_bus1)).value = self.theta_lower[ctr_bus1]
@@ -166,10 +165,6 @@ class PowerOperations(object):
         
         for ctr_c in range(2):
             self.CritVal.add_record(str(ctr_c+1)).value = float(self.weights[ctr_c])
-        # print(self.pg_injection)
-        # print(self.pg_upper)
-        # print(self.pg_lower)
-        # print(self.p_load)
         self.IntDur.add_record().value = self.sampling_duration
         self.problem = self.ws.add_job_from_string(opt_problem)
         opt = self.ws.add_options()
@@ -177,45 +172,40 @@ class PowerOperations(object):
         self.problem.run(opt, databases=self.db)
 
     def _define_problem(self):
-        self.i = self.db.add_set("i", 1, "Set of nodes")
-        self.c = self.db.add_set("c", 1,  "Load divided based on criticality")
+        self.nodes = self.db.add_set("nodes", 1, "Set of nodes")
+        self.critical_load = self.db.add_set("critical_load", 1, "Load divided based on criticality")
         
-        self.PGLbarT = self.db.add_parameter_dc("PGLbarT", [self.i], "Power generation lower limit")
-        self.PGUbarT = self.db.add_parameter_dc("PGUbarT", [self.i], "Power generation upper limit")
+        self.PGLbarT = self.db.add_parameter_dc("PGLbarT", [self.nodes], "Power generation lower limit")
+        self.PGUbarT = self.db.add_parameter_dc("PGUbarT", [self.nodes], "Power generation upper limit")
 
-        self.ThetaLbar = self.db.add_parameter_dc("ThetaLbar", [self.i], "Power angle lower limit")
-        self.ThetaUbar = self.db.add_parameter_dc("ThetaUbar", [self.i], "Power angle upper limit")
+        self.ThetaLbar = self.db.add_parameter_dc("ThetaLbar", [self.nodes], "Power angle lower limit")
+        self.ThetaUbar = self.db.add_parameter_dc("ThetaUbar", [self.nodes], "Power angle upper limit")
 
-        self.B_ = self.db.add_parameter_dc("B", [self.i, self.i], "Admittance matrix")
-        self.PLoad = self.db.add_parameter_dc("PLoad", [self.i], "Load value")
-        self.PLbar = self.db.add_parameter_dc("PLbar", [self.i, self.i], "Line Flow Limits")
+        self.B_ = self.db.add_parameter_dc("B", [self.nodes, self.nodes], "Admittance matrix")
+        self.PLoad = self.db.add_parameter_dc("PLoad", [self.nodes], "Load value")
+        self.PLbar = self.db.add_parameter_dc("PLbar", [self.nodes, self.nodes], "Line Flow Limits")
 
-        self.LineStat = self.db.add_parameter_dc("LineStat", [self.i, self.i], "Line Status")
-        self.Rampbar = self.db.add_parameter_dc("Rampbar", [self.i], "Ramp rate limit")
+        self.LineStat = self.db.add_parameter_dc("LineStat", [self.nodes, self.nodes], "Line Status")
+        self.Rampbar = self.db.add_parameter_dc("Rampbar", [self.nodes], "Ramp rate limit")
         self.IntDur = self.db.add_parameter("IntDur", 0, "Duration of a typical interval")
 
-        self.CritFrac = self.db.add_parameter_dc("CritFrac", [self.i, self.c], "Fraction of loads critical and non-critical")
-        self.CritVal = self.db.add_parameter_dc("CritVal", [self.c], "Value of the critical load")
-        self.PGBegin = self.db.add_parameter_dc("PGBegin", [self.i], "Generation at the begining")
+        self.CritFrac = self.db.add_parameter_dc("CritFrac", [self.nodes, self.critical_load], "Fraction of loads critical and non-critical")
+        self.CritVal = self.db.add_parameter_dc("CritVal", [self.critical_load], "Value of the critical load")
+        self.PGBegin = self.db.add_parameter_dc("PGBegin", [self.nodes], "Generation at the begining")
 
     def _solve_initial_model(self):        
-        # self._define_problem()
-        # self.db.set_suppress_auto_domain_checking(True)
         self._setup_problem(initial_model)
         self._extract_results()
         assert self.has_converged, "Initial Model did not converge"
-        # self.pg_injection_initial = deepcopy(self.pg_injection)
+
         self.theta_initial = deepcopy(self.theta)
         self.power_flow_line_initial = deepcopy(self.power_flow_line)
         self.ramp_upper_initial = deepcopy(self.max_ramp)
         self.pg_upper_initial = deepcopy(self.pg_upper)
         self.pg_lower_initial = deepcopy(self.pg_lower)
-        # self.p_load_initial = deepcopy(self.p_load_solved)
-        # self.branch_status_initial = deepcopy(self.branch_status)
-    
+
     def _solve_runtime_model(self):
         self._setup_problem(run_time_model)
-        # self._extract_results(True)
         self._extract_results(True)
 
     def _extract_results(self, induce_violation=False):

@@ -43,8 +43,8 @@ class PowerOperations(object):
         self.non_crtitcal_fractional = self.ppc_int["noncrticalfrac"]    # Portion of a load at bus thats critical
         self.weights = self.ppc_int["weights"]                 # Weight associated with critical, non-critical load
 
-        self.gen_buses = self.ppc_int["gen"][:,0]
-        self.gen_buses = np.vectorize(lambda x: int(x))(self.gen_buses)
+        gen_buses = self.ppc_int["gen"][:,0]
+        self.gen_buses = np.vectorize(lambda x: int(x))(gen_buses)
 
         self._cretae_ybus()        # Creating ybus
         self.B = -1j * self.ybus
@@ -73,65 +73,52 @@ class PowerOperations(object):
         # self._initialize()
 
     def _initialize(self):
-        # Status of every bus
-        self.bus_status = np.ones(self.num_bus, dtype=int)
-        # Upper limit of power flowing through a transmission line
-        # its (num_bus x num_bus) matrix 
-        self.power_flow_line_upper = np.zeros((self.num_bus, self.num_bus), dtype=np.float32)
-        self.power_flow_line = np.zeros((self.num_bus, self.num_bus), dtype=np.float32)
+        self.bus_status = np.ones(self.num_bus, dtype=int)             # Status of every bus
         self.branch_status = np.zeros((self.num_bus, self.num_bus), dtype=np.float32)
-        for branch_ctr in range(self.num_branch):   
-            # branch -> (r,c)
+
+        self.power_flow_line = np.zeros((self.num_bus, self.num_bus), dtype=np.float32)
+        self.power_flow_line_upper = np.zeros((self.num_bus, self.num_bus), dtype=np.float32)
+
+        for branch_ctr in range(self.num_branch):
             r = self.from_buses[branch_ctr]
             c = self.to_buses[branch_ctr]
-            self.power_flow_line_upper[r][c] += \
-                self.ppc_int["branch"][branch_ctr, RATE_A]/ self.ppc_int["baseMVA"]
+
+            # branch -> (r,c)
+            self.power_flow_line_upper[r][c] += self.ppc_int["branch"][branch_ctr, RATE_A]/ self.ppc_int["baseMVA"]
             self.branch_status[r][c] = 1
                 
             # branch -> (c,r)
-            self.power_flow_line_upper[c][r] += \
-                self.ppc_int["branch"][branch_ctr, RATE_A]/ self.ppc_int["baseMVA"]
+            self.power_flow_line_upper[c][r] += self.ppc_int["branch"][branch_ctr, RATE_A]/ self.ppc_int["baseMVA"]
             self.branch_status[c][r] = 1
 
-        # List of load demand on each bus
-        self.p_load_initial = self.ppc_int["bus"][:,PD]/ self.ppc_int["baseMVA"]
+        self.p_load_initial = self.ppc_int["bus"][:,PD]/ self.ppc_int["baseMVA"]      # List of load demand on each bus
         self.p_load = deepcopy(self.p_load_initial)
-        # Upper power injection limit of each generator
-        # This list contains non generator buses with upper limit set to 0
-        self.pg_upper = np.zeros(self.num_bus, np.float64)
-        # Lower power injection limit of each generator
+
+        self.pg_upper = np.zeros(self.num_bus, np.float64)           # non generator buses with upper limit set to 0
         self.pg_lower = np.zeros(self.num_bus, np.float64)
-        # Ramp rate limit of each generator
-        self.ramp_upper = np.zeros(self.num_bus, np.float64)
-        # Power injected by each generator
-        # Initially this is provided by solving the load flow
-        # Then in the successive iterations through the agent
+        self.max_ramp = np.zeros(self.num_bus, np.float64)
         self.pg_injection = np.zeros(self.num_bus, np.float64)
         
-        sub_numbers = [1.9200, 1.9200, 0.0000, 0.0000,
-                    0.0000, 0.0000, 3.0000, 0.0000, 
-                    0.0000, 0.0000, 0.0000, 0.0000, 
-                    5.9100, 0.0000, 2.1500, 1.5500, 
-                    0.0000, 1.9833, 0.0000, 0.0000, 
-                    1.9833, 3.0000, 5.0833, 0.0000]
-
         for gen in self.initial_load_flow["gen"]:
             self.pg_lower[int(gen[GEN_BUS])] = gen[PMIN] / self.ppc_int["baseMVA"]
             self.pg_upper[int(gen[GEN_BUS])] = gen[PMAX] / self.ppc_int["baseMVA"]
-            self.ramp_upper[int(gen[GEN_BUS])] = gen[RAMP_10] / self.ppc_int["baseMVA"]
+            self.max_ramp[int(gen[GEN_BUS])] = gen[RAMP_10] / self.ppc_int["baseMVA"]
             self.pg_injection[int(gen[GEN_BUS])] = gen[PG] / self.ppc_int["baseMVA"]
-        
-        # Overwriting Load Flow calculation with subir's numbers
-        self.pg_injection = sub_numbers
 
-        # Voltage angle upper limit is pi/4
-        self.theta_upper = (np.pi/4)*np.ones(self.num_bus, dtype=np.float64)
-        # Voltage angle lower limit is -pi/4
-        self.theta_lower = -1*(np.pi/4)*np.ones(self.num_bus, dtype=np.float64)
+        sub_numbers = [1.9200, 1.9200, 0.0000, 0.0000,
+                    0.0000, 0.0000, 3.0000, 0.0000,
+                    0.0000, 0.0000, 0.0000, 0.0000,
+                    5.9100, 0.0000, 2.1500, 1.5500,
+                    0.0000, 1.9833, 0.0000, 0.0000,
+                    1.9833, 3.0000, 5.0833, 0.0000]
+        self.pg_injection = sub_numbers              # Overwriting Load Flow calculation with subir's numbers
+
+        self.theta_upper = (np.pi/4)*np.ones(self.num_bus, dtype=np.float64)        # Voltage angle upper limit is pi/4
+        self.theta_lower = -1*(np.pi/4)*np.ones(self.num_bus, dtype=np.float64)     # Voltage angle lower limit is -pi/4
         self.theta = np.zeros(self.num_bus, dtype=np.float64)
         
         # Setting and Running the optimizatin problem for the base case
-        # This is better than just load flow as  load flow will not
+        # This is better than just load flow as load flow will not
         # take care of line limits. The other option could have been 
         # dc opf in pypower
         self._solve_initial_model()
@@ -148,10 +135,8 @@ class PowerOperations(object):
         self.branch_impedance = 1j * self.ppc_int["branch"][:, BR_X]
         self.branch_admittance = 1/ self.branch_impedance
         for branch_ctr in range(0,self.num_branch):
-            self.ybus[self.from_buses[branch_ctr], self.to_buses[branch_ctr]
-                      ] -= self.branch_admittance[branch_ctr]
-            self.ybus[self.to_buses[branch_ctr], self.from_buses[branch_ctr]
-                      ] = self.ybus[self.from_buses[branch_ctr], self.to_buses[branch_ctr]]
+            self.ybus[self.from_buses[branch_ctr], self.to_buses[branch_ctr]] -= self.branch_admittance[branch_ctr]
+            self.ybus[self.to_buses[branch_ctr], self.from_buses[branch_ctr]] = self.ybus[self.from_buses[branch_ctr], self.to_buses[branch_ctr]]
         
         for bus_ctr in range(0, self.num_bus):
             for branch_ctr in range(0, self.num_branch):
@@ -169,7 +154,7 @@ class PowerOperations(object):
             self.ThetaLbar.add_record(str(ctr_bus1)).value = self.theta_lower[ctr_bus1]
             self.ThetaUbar.add_record(str(ctr_bus1)).value = self.theta_upper[ctr_bus1]
             self.PLoad.add_record(str(ctr_bus1)).value = self.p_load[ctr_bus1]
-            self.Rampbar.add_record(str(ctr_bus1)).value = self.ramp_upper[ctr_bus1]
+            self.Rampbar.add_record(str(ctr_bus1)).value = self.max_ramp[ctr_bus1]
             self.PGBegin.add_record(str(ctr_bus1)).value = self.pg_injection[ctr_bus1]
             for ctr_bus2 in range(self.num_bus):
                 self.B_.add_record((str(ctr_bus1), str(ctr_bus2))).value = float(self.B[ctr_bus1][ctr_bus2])
@@ -222,7 +207,7 @@ class PowerOperations(object):
         # self.pg_injection_initial = deepcopy(self.pg_injection)
         self.theta_initial = deepcopy(self.theta)
         self.power_flow_line_initial = deepcopy(self.power_flow_line)
-        self.ramp_upper_initial = deepcopy(self.ramp_upper)
+        self.ramp_upper_initial = deepcopy(self.max_ramp)
         self.pg_upper_initial = deepcopy(self.pg_upper)
         self.pg_lower_initial = deepcopy(self.pg_lower)
         # self.p_load_initial = deepcopy(self.p_load_solved)
@@ -266,7 +251,6 @@ class PowerOperations(object):
                 # self.power_flow_line[self.from_buses[i]][[self.to_buses[i]]]] for i in range(self.num_branch)])
         
     def get_state(self):
-        # print("Method PowerOperations.{} Not Implemented Yet".format("get_state"))
         state = {}
         state["generator_injection"] = self.pg_injection
         state["load_demand"] = self.p_load
@@ -413,7 +397,7 @@ class PowerOperations(object):
                     self.pg_injection[node] = 0
                     self.pg_lower[node] = 0
                     self.pg_upper[node] = 0
-                    self.ramp_upper[node] = 0
+                    self.max_ramp[node] = 0
                     self.p_load[node] = 0
                     self.p_load_upper[node] = 0
                     self.bus_status[node] = 0 
@@ -464,7 +448,7 @@ class PowerOperations(object):
                     self.pg_injection[ctr] = 0
                     self.pg_lower[ctr] = 0
                     self.pg_upper[ctr] = 0
-                    self.ramp_upper[ctr] = 0
+                    self.max_ramp[ctr] = 0
                     self.p_load[ctr] = 0
                     self.p_load_upper[ctr] = 0
                     self.bus_status[ctr] = 0
@@ -541,23 +525,6 @@ class PowerOperations(object):
             pass
             
     def reset(self):
-        # self.pg_injection = deepcopy(self.pg_injection_initial) 
-        # self.theta =  deepcopy(self.theta_initial) 
-        # self.power_flow_line =  deepcopy(self.power_flow_line_initial) 
-        # self.ramp_upper = deepcopy(self.ramp_upper_initial) 
-        # self.pg_upper = deepcopy(self.pg_upper_initial)
-        # self.pg_lower = deepcopy(self.pg_lower_initial) 
-        # self.p_load = deepcopy(self.p_load_initial)
-        # self.p_load_solved = deepcopy(self.p_load_initial)
-        # self.p_load_upper = deepcopy(self.p_load)
-        # self.branch_status = deepcopy(self.branch_status_initial) 
-        # self.bus_status = np.ones(self.num_bus, int)
-        # self.has_converged = True
-        # self.previous_action = deepcopy(self.initial_action)
-        # self.previous_fire_state = deepcopy(self.initial_fire_state)
-        # self.live_equipment_removal_count = 0
-        # self.protection_action_count = 0
-        # self.live_equipment_removal_penalty = 0
         self._remove_temp_files()
         self._initialize()
         return self.get_state()

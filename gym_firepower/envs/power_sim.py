@@ -346,25 +346,14 @@ class PowerOperations(object):
     
     def _check_protection_system_actions(self, fire_state):
         protection_action_count = 0
-        # for key in fire_state:
-        #     for equipment in fire_state[key]:
-        #         if self.previous_fire_state[key][equipment] != fire_state[key][equipment]:
-        #             if fire_state[key][equipment] == 0:
-        #                 protection_action_count += 1
-        
+
         for branch in fire_state["branch"]:
             if fire_state["branch"][branch] != self.previous_fire_state["branch"][branch]:
                 if fire_state["branch"][branch] == 0:
                     if self.branch_status[branch[0]][branch[1]] == 1:
                         protection_action_count += 1
-                        logger.info("Protection action at line ({}, {})".format(
-                            branch[0],
-                            branch[1]
-                        ))
-                        # print("Protection action at line ({}, {})".format(
-                        #     branch[0],
-                        #     branch[1]
-                        # ))
+                        logger.info("Protection action at line ({}, {})".format(branch[0], branch[1]))
+
                     self.branch_status[branch[0]][branch[1]] = 0
                     self.branch_status[branch[1]][branch[0]] = 0
                     self.power_flow_line_upper[branch[0]][branch[1]] = 0
@@ -376,7 +365,7 @@ class PowerOperations(object):
                     if self.pg_injection[node] > 0.001:
                         protection_action_count += 1
                         logger.info("Protection action at bus {}".format(node))
-                        # print("Protection action at bus {}".format(node))
+
                     self.pg_injection[node] = 0
                     self.pg_lower[node] = 0
                     self.pg_upper[node] = 0
@@ -390,44 +379,33 @@ class PowerOperations(object):
     def _check_live_line_removal_actions(self, branch_actions, node_actions):
         live_equipment_removal_count = 0
         for ctr in range(self.num_branch):
-            # if self.previous_action["branch_status"][ctr] != branch_actions[ctr]:
             assert self.branch_status[self.from_buses[ctr]][self.to_buses[ctr]] == \
-                self.branch_status[self.to_buses[ctr]][self.from_buses[ctr]], \
-                "Branch Status symmetry has been lost"
+                self.branch_status[self.to_buses[ctr]][self.from_buses[ctr]], "Branch Status symmetry has been lost"
+
             if self.branch_status[self.from_buses[ctr]][self.to_buses[ctr]] != branch_actions[ctr]:
                 f_bus = self.from_buses[ctr]
                 t_bus = self.to_buses[ctr]
+
                 if branch_actions[ctr] == 0:
-                    if self.power_flow_line[f_bus][t_bus] > 0.001 or \
-                        self.power_flow_line[t_bus][f_bus] > 0.001 :
-                        logger.warn("Removing a live line ({}, {})".format(f_bus, t_bus))
-                        # print("Removing a live line ({}, {})".format(f_bus, t_bus))
-                        logger.warn("The power flowing through the line ({}, {}) is {}".format(
-                            f_bus, t_bus, self.power_flow_line[f_bus][t_bus]))
-                        # print("The power flowing through the line ({}, {}) is {}".format(
-                            # f_bus, t_bus, self.power_flow_line[f_bus][t_bus]))
+                    if self.power_flow_line[f_bus][t_bus] > 0.001 or self.power_flow_line[t_bus][f_bus] > 0.001 :
+                        logger.warn("Removing a live line ({}, {}) amount of power: {}".format(f_bus, t_bus, self.power_flow_line[f_bus][t_bus]))
                         live_equipment_removal_count += 1
-                        self.live_equipment_removal_penalty += abs(
-                            self.power_flow_line[f_bus][t_bus])*self.ppc_int["baseMVA"]
+                        self.live_equipment_removal_penalty += abs(self.power_flow_line[f_bus][t_bus])*self.ppc_int["baseMVA"]
+
                     self.branch_status[f_bus][t_bus] = 0
                     self.branch_status[t_bus][f_bus] = 0
                     self.power_flow_line_upper[f_bus][t_bus] = 0
                     self.power_flow_line_upper[t_bus][f_bus] = 0
+
         for ctr in range(self.num_bus):
-            # if self.previous_action["bus_status"][ctr] != node_actions[ctr]:
             if self.bus_status[ctr] != node_actions[ctr]:
                 if node_actions[ctr] == 0:
                     if self.pg_injection[ctr] > 0.001:
-                        logger.warn("The power output of the generator at bus {} is {}".format(
-                            ctr, self.pg_injection[ctr]))
-                        # print("The power output of the generator at bus {} is {}".format(
-                            # ctr, self.pg_injection[ctr]))
-                        logger.warn("Removing a live generator at bus {}".format(ctr))
-                        # print("Removing a live generator at bus {}".format(ctr))
+                        logger.warn("Removing a live generator at bus {}, pg_injection is {}".format(ctr, self.pg_injection[ctr]))
                         live_equipment_removal_count += 1
                         gen_bus = int(np.where(self.gen_buses == ctr)[0][0])
-                        self.live_equipment_removal_penalty += abs(
-                            (self.pg_injection[ctr] * self.ppc_int["baseMVA"]) - self.ppc_int["gen"][gen_bus, PMIN])
+                        self.live_equipment_removal_penalty += abs((self.pg_injection[ctr] * self.ppc_int["baseMVA"]) - self.ppc_int["gen"][gen_bus, PMIN])
+
                     self.pg_injection[ctr] = 0
                     self.pg_lower[ctr] = 0
                     self.pg_upper[ctr] = 0

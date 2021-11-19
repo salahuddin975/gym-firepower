@@ -210,36 +210,29 @@ class PowerOperations(object):
 
     def _extract_results(self, induce_violation=False):
         self.p_load_solved = 0.0
-        # p_load_solved_distribution is a tuple (critical load in system, non critical load in system)
-        self.p_load_solved_distribution = np.array([0,0], dtype=float)
+        self.p_load_solved_distribution = np.array([0,0], dtype=float)     # [critical load, non critical load]
         model_status  = int(self.problem.out_db["ModStat"].first_record().value)
+
         if model_status not in [3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 18, 19]:
             self.has_converged = True
             self.theta = [self.problem.out_db["Theta"]["{}".format(i)].get_level() for i in range(self.num_bus)]
             self.pg_injection = np.around([self.problem.out_db["PGn"]["{}".format(i)].get_level() for i in range(self.num_bus)], 4)
+
             for i in range(self.num_branch):
                 from_bus = self.from_buses[i]
                 to_bus = self.to_buses[i]
                 self.power_flow_line[from_bus][to_bus] = self.problem.out_db["LineFlow"][(str(from_bus), str(to_bus))].get_level()
                 self.power_flow_line[to_bus][from_bus] = self.problem.out_db["LineFlow"][(str(to_bus), str(from_bus))].get_level() 
+
             self.zval = self.problem.out_db["ZVal"].first_record().value
             self.load_loss = self.problem.out_db["Load_loss"].first_record().value
             self.p_load_solved_distribution[0] = np.around(self.problem.out_db["p_solved_c"].first_record().value, 3)
             self.p_load_solved_distribution[1] =  np.around(self.problem.out_db["p_solved_nc"].first_record().value, 3)
             self.p_load_solved =  round(self.problem.out_db["p_solved"].first_record().value, 3)
-            # keys = [ int(rec.keys[0]) for rec in self.problem.out_db["PLoad_"] ]
-            # for key in keys:
-                # self.p_load_solved[key] = self.problem.out_db["PLoad_"][str(key)].value
-            # print("solved ->", self.pg_injection)
         else:
-        # if (induce_violation or model_status in [4, 5, 6, 9, 10, 14, 19]):
             self.has_converged = False
-            # logger.warn("Model did not converge, status {}".format(model_status))
             print("Model did not converge, status {}".format(model_status))
-        # logger.debug(list(zip(range(self.num_bus), self.pg_injection)))
-        # logger.debug([[(self.from_buses[i], self.to_buses[i]),
-                # self.power_flow_line[self.from_buses[i]][[self.to_buses[i]]]] for i in range(self.num_branch)])
-        
+
     def get_state(self):
         state = {}
         state["generator_injection"] = self.pg_injection

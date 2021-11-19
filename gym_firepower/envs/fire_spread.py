@@ -343,8 +343,9 @@ class Cell(object):
 
 
 class FireSpread(object):
-    def __init__(self, conf_file, factor, rng, save_fire_spread_info=False, seed=50):
-        self.grid = Grid(conf_file, factor, rng)
+    def __init__(self, conf_file, factor, seed, save_fire_spread_info=False):
+        np_rng, seed = seeding.np_random(seed)
+        self.grid = Grid(conf_file, factor, np_rng)
 
         self._save_fire_spread_info = save_fire_spread_info
         if self._save_fire_spread_info:
@@ -377,9 +378,7 @@ class FireSpread(object):
 if __name__ == "__main__":
     conf_file = "./../../../FirePower-agent-private/configurations/configuration.json"
     seed = 50
-
-    np_random, seed = seeding.np_random(seed)
-    fire_spread = FireSpread(conf_file, 1, np_random, True, seed)
+    fire_spread = FireSpread(conf_file, 1, seed, True)
 
     num_of_episode = 100
     num_of_steps = 300

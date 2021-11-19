@@ -22,7 +22,6 @@ class FirePowerEnv(gym.Env):
                  non_convergence_penalty=None, protection_action_penalty=None,
                  active_line_removal_penalty=None, sampling_duration=1/6, num_tunable_gen=10, seed=None):
 
-        self.np_random, seed = seeding.np_random(seed)
         if geo_file is None:
             assert False, 'Configuration file for fire spreading model is missing'
         if network_file is None:
@@ -40,7 +39,7 @@ class FirePowerEnv(gym.Env):
         self.ppc = ext2int(ppc)
         assert num_tunable_gen <= self.ppc["gen"].shape[0], "Number of tunable generators should be less than total generators"
 
-        self.fire_spread_model = FireSpread(geo_file, scaling_factor, self.np_random)
+        self.fire_spread_model = FireSpread(geo_file, scaling_factor, seed)
         self.power_sys_model = PowerOperations(self.ppc, self.fire_spread_model.get_reduced_state(),
                                                sampling_duration, num_tunable_gen)
 

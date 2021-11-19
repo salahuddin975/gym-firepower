@@ -439,33 +439,30 @@ class PowerOperations(object):
         self.live_equipment_removal_count += live_equipment_removal_count
 
     def _any_change_action(self, action):
-        injections = {
-            int(key): 0 for key in action["generator_selector"]}
+        injections = {int(key): 0 for key in action["generator_selector"]}
         for gen_pair in zip(action["generator_selector"], action["generator_injection"]):
             injections[gen_pair[0]] += gen_pair[1]
-        previous_injections = {
-            int(key): 0 for key in self.previous_action["generator_selector"]}
+
+        previous_injections = {int(key): 0 for key in self.previous_action["generator_selector"]}
         for gen_pair in zip(self.previous_action["generator_selector"], self.previous_action["generator_injection"]):
             previous_injections[gen_pair[0]] += gen_pair[1]
-        # print("previous injection")
-        # print(previous_injections)
-        # print("current injection")
-        # print(injections)
-        # print(injections == previous_injections)
-        if not np.all(action["branch_status"] == self.previous_action["branch_status"]):
-            logger.info("Branch status in the current action is different")
-            return True
-        if not np.all(action["bus_status"] == self.previous_action["bus_status"]):
-            logger.info("Bus status in the current action is different")
-            return True
+
         if not injections == previous_injections:
             logger.info("Injections in the current action are different")
             return True
+
+        if not np.all(action["branch_status"] == self.previous_action["branch_status"]):
+            logger.info("Branch status in the current action is different")
+            return True
+
+        if not np.all(action["bus_status"] == self.previous_action["bus_status"]):
+            logger.info("Bus status in the current action is different")
+            return True
+
         for gen in injections:
             if gen in self.ppc_int["gen"][:, GEN_BUS]:
                 if injections[gen] > 0.0001 or injections[gen] < -0.0001:
-                    logger.info(
-                        "There exists atleast one non zero injection in current action")
+                    logger.info("There exists atleast one non zero injection in current action")
                     return True
         
         logger.info("Current action will not cause any change")
@@ -473,38 +470,29 @@ class PowerOperations(object):
     
     def _any_change_fire_state(self, fire_state):
         return self.previous_fire_state["node"] != fire_state["node"] or \
-            self.previous_fire_state["branch"] != fire_state["branch"]
+               self.previous_fire_state["branch"] != fire_state["branch"]
 
     def step(self, action, fire_state):
         self.protection_action_count = 0
         self.live_equipment_removal_penalty = 0
-        # Handling floating point errors here
-        action["generator_injection"] = np.around(action["generator_injection"], 4)
-            # round(injection, 4) for injection in action["generator_injection"]]
-        # Do I need to do anything in this step
+        action["generator_injection"] = np.around(action["generator_injection"], 4)  # handling floating point error
+
         if self._any_change_action(action) or self._any_change_fire_state(fire_state):
             logger.info("Current action will cause a change")
-            # Check for violations
             has_violations  = self._check_violations(action)
             if not has_violations:
                 self.has_converged = True
-                # Identify protection system operation counts
-                self._check_protection_system_actions(fire_state)
-                # Identify live line removal operation counts
-                self._check_live_line_removal_actions(action["branch_status"], action["bus_status"])
-                # Pg_injections, Pg_upper, Pg_lower, P_load, P_load_upper 
-                # Branch_status, P_line_flow_upper, Ramp_upper has been updated
+                self._check_protection_system_actions(fire_state)       # protection system operation counts
+                self._check_live_line_removal_actions(action["branch_status"], action["bus_status"])    # live line removal operation counts
+
                 self.previous_action = deepcopy(action)
                 self.previous_fire_state = deepcopy(fire_state)
                 self._solve_runtime_model() 
             else:
                 self.has_converged = False
                 logger.warn("Skipping this episode because of a violation")
-                # print("Skipping this episode because of a violation")
         else:
-            # Change to logger later
             logger.info("Skipping this iteration as no change detected")
-            # print("Skipping this iteration as no change detected")
             pass
             
     def reset(self):
@@ -524,21 +512,18 @@ class PowerOperations(object):
     def get_load_loss(self):
         return round(sum(self.p_load_initial) - self.p_load_solved, 3)
     
-    def get_load_loss_weighted(self):
-        # non critical load
-        non_critical_loss = sum(self.p_load_initial * (1- float(self.non_crtitcal_fractional[ctr_bus1][1]))) - sum(self.p_load_solved_distribution[1])
-        # critical load
-        critical_loss = sum(self.p_load_initial * float(self.non_crtitcal_fractional[ctr_bus1][1])) - sum(self.p_load_solved_distribution[0])
-        # total load
-        weighted_load_loss = non_critical_loss*self.weights[1] + critical_loss*self.weights[0]
-        return weighted_load_loss
+    # def get_load_loss_weighted(self):
+    #     non_critical_loss = sum(self.p_load_initial * (1- float(self.non_crtitcal_fractional[ctr_bus1][1]))) \
+    #                         - sum(self.p_load_solved_distribution[1])
+    #     critical_loss = sum(self.p_load_initial * float(self.non_crtitcal_fractional[ctr_bus1][1])) \
+    #                     - sum(self.p_load_solved_distribution[0])
+    #     weighted_load_loss = non_critical_loss*self.weights[1] + critical_loss*self.weights[0]
+    #     return weighted_load_loss
     
     def get_status(self):
-        # print("Method PowerOperations.{} Not Implemented Yet".format("get_status"))
         return not self.has_converged
     
     def get_protection_operation_count(self):
-        # print("Method PowerOperations.{} Not Implemented Yet".format("get_protection_operaton_count"))
         return self.protection_action_count
     
     def get_active_line_removal_count(self):

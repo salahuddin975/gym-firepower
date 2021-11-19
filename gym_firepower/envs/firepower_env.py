@@ -3,8 +3,8 @@ from gym import error, spaces, utils
 from gym.spaces.space import Space
 from gym.utils import seeding
 from pypower.idx_brch import F_BUS, T_BUS
-from fire_spread import FireSpread
-from power_sim import PowerOperations
+from gym_firepower.envs.fire_spread import FireSpread
+from gym_firepower.envs.power_sim import PowerOperations
 from pypower.loadcase import loadcase
 import numpy as np
 from math import ceil

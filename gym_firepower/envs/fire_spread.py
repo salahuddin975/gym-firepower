@@ -9,7 +9,7 @@ from numpy import arccos, array, dot, pi, cross
 from numpy.linalg import det, norm
 from gym import logger
 from gym.utils import seeding
-from fire_spread_log_writer import FireSpreadInfoWriter
+from gym_firepower.envs.fire_spread_log_writer import FireSpreadInfoWriter
 from enum import Enum
 
 

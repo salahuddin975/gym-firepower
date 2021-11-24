@@ -9,7 +9,8 @@ from numpy import arccos, array, dot, pi, cross
 from numpy.linalg import det, norm
 from gym import logger
 from gym.utils import seeding
-from gym_firepower.envs.fire_spread_log_writer import FireSpreadInfoWriter
+# from gym_firepower.envs.fire_spread_log_writer import FireSpreadInfoWriter
+from fire_spread_log_writer import FireSpreadInfoWriter
 from enum import Enum
 
 
@@ -27,6 +28,7 @@ class CellState(Enum):
 class Grid(object):
     def __init__(self, geo_file, scaling_factor, rng):
         self.rng = rng
+        self.total = 0
         self.scaling_factor = scaling_factor
         self.branch_ids = defaultdict(dict)
         self._parse_geo_file(geo_file)
@@ -60,7 +62,8 @@ class Grid(object):
         self.critical_cells = self._identify_critical_cells(args["bus_ids"], args["branches"])
 
         self._create_base_image(args["fuel_type"])
-        self.burning_cells = np.array([ cell for cell in self.sources], dtype=int)
+        self.newly_added_burning_cells = np.array([cell for cell in self.sources], dtype=int)
+        self._burning_cells = self.sources
         self.fire_distance = {"nodes": {}, "branches": {} }
         self._calculate_distance_from_fire()
 
@@ -152,28 +155,59 @@ class Grid(object):
         temp[:,:,1] = temp[:,:,1] - self.state*temp[:,:,1]
         return temp
 
-    def step(self):
-        self.burning_cells = []
+    def step_ajay(self):
+        self.newly_added_burning_cells = []
         for row in range(self.rows):
             for col in range(self.cols):
-                self.grid[row][col].step()
+                self.grid[row][col].step_ajay()
                 if self.grid[row][col].next_state != self.grid[row][col].state:
                     if self.grid[row][col].next_state == CellState.BURNING:
-                        self.burning_cells.append((row,col))
-        self.burning_cells = np.array(self.burning_cells, dtype=int)
-        
+                        self.newly_added_burning_cells.append((row, col))
+        self.newly_added_burning_cells = np.array(self.newly_added_burning_cells, dtype=int)
+
         for row in range(self.rows):
             for col in range(self.cols):
                 self.state[row, col] = self.grid[row][col].update_state()
-                
+
+        self.total += self.newly_added_burning_cells.size
+        print("total_burning: ", self.total)
+
+    def step(self):
+        burnt_cells = []
+        newly_added_burning_cells = []
+
+        for cell in self._burning_cells:
+            row, col = cell[0], cell[1]
+            self.grid[row][col].step(newly_added_burning_cells)
+            if self.grid[row][col].get_state() == CellState.BURNT:
+                burnt_cells.append(cell)
+
+        for burnt_cell in burnt_cells:
+            self.state[burnt_cell] = CellState.BURNT
+            self._burning_cells.remove(burnt_cell)
+        self._burning_cells = self._burning_cells + newly_added_burning_cells
+
+        for cell in newly_added_burning_cells:
+            self.state[cell] = CellState.BURNING
+            self.total += 1
+        self.newly_added_burning_cells = np.array(newly_added_burning_cells, dtype=int)
+
+        print("total_burning_cells:", self.total)
+
+
     def reset(self):
         self._get_new_sources()
         print("fire starts at: ", self.sources)
+
         for row in range(self.rows):
             for col in range(self.cols):
                 src_flag = self.fire_source[row,col] 
                 self.state[row, col] = self.grid[row][col].reset(src_flag)
-        self.burning_cells = np.array([cell for cell in self.sources], dtype=int)
+
+        self.newly_added_burning_cells = np.array([cell for cell in self.sources], dtype=int)
+        self._burning_cells = self.sources
+        print("reset: burning_cells:", len(self._burning_cells))
+
         self.fire_distance = {"nodes": {}, "branches": {}}
         self._calculate_distance_from_fire()
     
@@ -228,12 +262,12 @@ class Grid(object):
         return deepcopy(self.fire_distance)
 
     def _calculate_distance_from_fire(self):
-        if self.burning_cells.shape[0] > 0:
+        if self.newly_added_burning_cells.shape[0] > 0:
             bus_dict = self.fire_distance["nodes"]
             branch_dict = self.fire_distance["branches"]
             for bus in self.bus_ids:
                 bus_idx = np.array(self.bus_ids[bus])
-                min_dist = min([round(np.linalg.norm(cell - bus_idx), 3) for cell in self.burning_cells])
+                min_dist = min([round(np.linalg.norm(cell - bus_idx), 3) for cell in self.newly_added_burning_cells])
                 try:
                     if bus_dict[bus] > min_dist:
                         bus_dict[bus] = min_dist
@@ -243,8 +277,8 @@ class Grid(object):
             for branch in self.branches:
                 from_bus = int(branch[0])
                 to_bus = int(branch[1])
-                min_dist = min([ self._calculate_distance(self.bus_ids[from_bus], self.bus_ids[to_bus], cell)
-                    for cell in self.burning_cells])
+                min_dist = min([self._calculate_distance(self.bus_ids[from_bus], self.bus_ids[to_bus], cell)
+                                for cell in self.newly_added_burning_cells])
                 try:
                     if branch_dict[(from_bus, to_bus)] > min_dist:
                         branch_dict[(from_bus, to_bus)] = min_dist
@@ -296,7 +330,7 @@ class Cell(object):
     def register_neighbors(self, neighbors):
         self.neighbors = neighbors
     
-    def step(self):
+    def step_ajay(self):
         if self.fuel_type != 0:
             if self.state == CellState.UNBURNT:
                 if self.counter == self.scaling_factor:
@@ -319,6 +353,21 @@ class Cell(object):
             elif self.state == CellState.BURNT:
                 pass
 
+    def step(self, newly_added_burning_cells):
+        for neighbor in self.neighbors:
+            if neighbor.fuel_type != 0 and neighbor.state == CellState.UNBURNT:
+                roll_dice = self.rng.uniform(0, 1)
+                if roll_dice <= self.spread_probab:
+                    neighbor.state = CellState.BURNING
+                    newly_added_burning_cells.append((neighbor.row, neighbor.col))
+
+        self.fuel_amount = self.fuel_amount + self.fuel_type
+        if self.fuel_amount <= 0:
+            self.state = CellState.BURNT
+
+    def get_state(self):
+        return self.state
+
     def reset(self, source_flag):
         self.fuel_amount = self.init_amt
         self.state = CellState.UNBURNT
@@ -328,9 +377,6 @@ class Cell(object):
         self.set_source()
         return self.state
 
-    def get_state(self):
-        return self.state
-    
     def update_state(self):
         self.state = self.next_state
         return self.state
@@ -361,7 +407,7 @@ class FireSpread(object):
         return fire_state
 
     def step(self):
-        self.grid.step()
+        self.grid.step_ajay()
 
     def reset(self):
         self.grid.reset()
@@ -380,7 +426,7 @@ if __name__ == "__main__":
     seed = 50
     fire_spread = FireSpread(conf_file, 1, seed, True)
 
-    num_of_episode = 100
+    num_of_episode = 10
     num_of_steps = 300
     for j in range(num_of_episode):
         fire_spread.reset()
@@ -388,5 +434,5 @@ if __name__ == "__main__":
         for i in range(num_of_steps):
             fire_spread.step()
             state = fire_spread.get_reduced_state()
-            print("episode:", j, ", step:", i,"state:", state)
+            print("episode:", j, ", step:", i,"state:", state["branch"])
 

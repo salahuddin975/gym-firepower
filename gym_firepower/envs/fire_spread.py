@@ -169,8 +169,8 @@ class Grid(object):
             for col in range(self.cols):
                 self.state[row, col] = self.grid[row][col].update_state()
 
-        self.total += self.newly_added_burning_cells.size
-        print("total_burning: ", self.total)
+        # self.total += self.newly_added_burning_cells.size/2
+        # print("total_burning_cells: ", int(self.total))
 
     def step(self):
         burnt_cells = []
@@ -178,22 +178,21 @@ class Grid(object):
 
         for cell in self._burning_cells:
             row, col = cell[0], cell[1]
-            self.grid[row][col].step(newly_added_burning_cells)
-            if self.grid[row][col].get_state() == CellState.BURNT:
+            state = self.grid[row][col].step(newly_added_burning_cells)
+            if state == CellState.BURNT:
                 burnt_cells.append(cell)
 
         for burnt_cell in burnt_cells:
             self.state[burnt_cell] = CellState.BURNT
             self._burning_cells.remove(burnt_cell)
-        self._burning_cells = self._burning_cells + newly_added_burning_cells
 
         for cell in newly_added_burning_cells:
             self.state[cell] = CellState.BURNING
-            self.total += 1
+        self._burning_cells = self._burning_cells + newly_added_burning_cells
+
         self.newly_added_burning_cells = np.array(newly_added_burning_cells, dtype=int)
-
-        print("total_burning_cells:", self.total)
-
+        # self.total += self.newly_added_burning_cells.size/2
+        # print("total_burning_cells:", int(self.total))
 
     def reset(self):
         self._get_new_sources()
@@ -364,6 +363,7 @@ class Cell(object):
         self.fuel_amount = self.fuel_amount + self.fuel_type
         if self.fuel_amount <= 0:
             self.state = CellState.BURNT
+        return self.state
 
     def get_state(self):
         return self.state
@@ -407,7 +407,7 @@ class FireSpread(object):
         return fire_state
 
     def step(self):
-        self.grid.step_ajay()
+        self.grid.step()
 
     def reset(self):
         self.grid.reset()
@@ -434,5 +434,5 @@ if __name__ == "__main__":
         for i in range(num_of_steps):
             fire_spread.step()
             state = fire_spread.get_reduced_state()
-            print("episode:", j, ", step:", i,"state:", state["branch"])
+            print("episode:", j, ", step:", i, "state:", state["branch"])
 

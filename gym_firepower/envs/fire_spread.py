@@ -408,7 +408,7 @@ class FireSpread(object):
         return fire_state
 
     def step(self):
-        self.grid.step_ajay()
+        self.grid.step()
 
     def reset(self):
         self.grid.reset()

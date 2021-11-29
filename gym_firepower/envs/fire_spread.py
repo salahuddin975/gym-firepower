@@ -10,8 +10,8 @@ from numpy import arccos, array, dot, pi, cross
 from numpy.linalg import det, norm
 from gym import logger
 from gym.utils import seeding
-# from gym_firepower.envs.fire_spread_log_writer import FireSpreadInfoWriter
-from fire_spread_log_writer import FireSpreadInfoWriter
+from gym_firepower.envs.fire_spread_log_writer import FireSpreadInfoWriter
+# from fire_spread_log_writer import FireSpreadInfoWriter
 from enum import Enum
 
 
@@ -408,7 +408,7 @@ class FireSpread(object):
         return fire_state
 
     def step(self):
-        self.grid.step()
+        self.grid.step_ajay()
 
     def reset(self):
         self.grid.reset()
@@ -428,7 +428,7 @@ if __name__ == "__main__":
     fire_spread = FireSpread(conf_file, 1, seed, True)
 
     start_time = datetime.now()
-    num_of_episode = 10
+    num_of_episode = 5
     num_of_steps = 300
     for j in range(num_of_episode):
         fire_spread.reset()
@@ -436,6 +436,7 @@ if __name__ == "__main__":
         for i in range(num_of_steps):
             fire_spread.step()
             state = fire_spread.get_reduced_state()
+            distance = fire_spread.get_distance_from_fire()
             # print("episode:", j, ", step:", i, "state:", state["branch"])
 
     computation_time = (datetime.now() - start_time).total_seconds()

@@ -1,5 +1,6 @@
 from math import ceil, floor
 import random
+from datetime import datetime
 import json
 from skimage.draw import line
 import numpy as np
@@ -426,6 +427,7 @@ if __name__ == "__main__":
     seed = 50
     fire_spread = FireSpread(conf_file, 1, seed, True)
 
+    start_time = datetime.now()
     num_of_episode = 10
     num_of_steps = 300
     for j in range(num_of_episode):
@@ -434,5 +436,7 @@ if __name__ == "__main__":
         for i in range(num_of_steps):
             fire_spread.step()
             state = fire_spread.get_reduced_state()
-            print("episode:", j, ", step:", i, "state:", state["branch"])
+            # print("episode:", j, ", step:", i, "state:", state["branch"])
 
+    computation_time = (datetime.now() - start_time).total_seconds()
+    print("total_computation_time:", computation_time)

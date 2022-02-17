@@ -54,7 +54,7 @@ class FirePowerEnv(gym.Env):
         if non_convergence_penalty is None:
             elements = self.ppc['bus'].shape[0] + self.ppc['branch'].shape[0]
             # self.nc_penalty = -10 * elements * self.total_load
-            self.nc_penalty = self.total_load * 300
+            self.nc_penalty = -1 * self.total_load * 300      # total number of steps
         else:
             self.nc_penalty = non_convergence_penalty
 

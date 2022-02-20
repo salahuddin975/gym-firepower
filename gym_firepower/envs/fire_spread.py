@@ -17,7 +17,7 @@ from enum import Enum
 
 DEFAULT_FUEL_TYPE = -3
 DEFAULT_FUEL_AMT = 100
-DEFAULT_SPREAD_PROBAB = 0.03
+DEFAULT_SPREAD_PROBAB = 0.029
 
 
 class CellState(Enum):

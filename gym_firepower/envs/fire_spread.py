@@ -206,7 +206,7 @@ class Grid(object):
 
         self.newly_added_burning_cells = np.array([cell for cell in self.sources], dtype=int)
         self._burning_cells = self.sources
-        print("reset: burning_cells:", len(self._burning_cells))
+        # print("reset: burning_cells:", len(self._burning_cells))
 
         self.fire_distance = {"nodes": {}, "branches": {}}
         self._calculate_distance_from_fire()

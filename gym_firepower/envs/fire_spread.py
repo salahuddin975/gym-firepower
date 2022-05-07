@@ -9,6 +9,7 @@ from copy import deepcopy
 from numpy import arccos, array, dot, pi, cross
 from numpy.linalg import det, norm
 from gym import logger
+import math
 from gym.utils import seeding
 from gym_firepower.envs.fire_spread_log_writer import FireSpreadInfoWriter
 # from fire_spread_log_writer import FireSpreadInfoWriter
@@ -268,34 +269,83 @@ class Grid(object):
             for bus in self.bus_ids:
                 bus_idx = np.array(self.bus_ids[bus])
                 min_dist = min([round(np.linalg.norm(cell - bus_idx), 3) for cell in self.newly_added_burning_cells])
-                try:
+
+                if bus in bus_dict:
                     if bus_dict[bus] > min_dist:
                         bus_dict[bus] = min_dist
-                except KeyError:
+                else:
                     bus_dict[bus] = min_dist
-                
+
             for branch in self.branches:
                 from_bus = int(branch[0])
                 to_bus = int(branch[1])
-                min_dist = min([self._calculate_distance(self.bus_ids[from_bus], self.bus_ids[to_bus], cell)
+                min_dist = min([self._calculate_min_distance(self.bus_ids[from_bus], self.bus_ids[to_bus], cell)
                                 for cell in self.newly_added_burning_cells])
-                try:
+
+                if (from_bus, to_bus) in branch_dict:
                     if branch_dict[(from_bus, to_bus)] > min_dist:
                         branch_dict[(from_bus, to_bus)] = min_dist
-                except KeyError:
+                else:
                     branch_dict[(from_bus, to_bus)] = min_dist
-            
+
     def _calculate_distance(self, p1, p2, P):
         """ segment line AB, point P, where each one is an array([x, y]) """
         A = np.array(p1)
         B = np.array(p2)
         if all(A == P) or all(B == P):
-            return 0
+            return 0.0
         if arccos(dot((P - A) / norm(P - A), (B - A) / norm(B - A))) > pi / 2:
-            return norm(P - A)
+            return round(norm(P - A), 3)
         if arccos(dot((P - B) / norm(P - B), (A - B) / norm(A - B))) > pi / 2:
-            return norm(P - B)
+            return round(norm(P - B), 3)
         return round(norm(cross(A-B, A-P))/norm(B-A),3)
+
+    def _calculate_min_distance(self, A, B, E):
+        # vector AB
+        AB = [None, None]
+        AB[0] = B[0] - A[0]
+        AB[1] = B[1] - A[1]
+
+        # vector BP
+        BE = [None, None]
+        BE[0] = E[0] - B[0]
+        BE[1] = E[1] - B[1]
+
+        # vector AP
+        AE = [None, None]
+        AE[0] = E[0] - A[0]
+        AE[1] = E[1] - A[1]
+
+        # Variables to store dot product
+
+        # Calculating the dot product
+        AB_BE = AB[0] * BE[0] + AB[1] * BE[1]
+        AB_AE = AB[0] * AE[0] + AB[1] * AE[1]
+
+        # Case 1
+        if (AB_BE > 0):
+            # Finding the magnitude
+            y = E[1] - B[1]
+            x = E[0] - B[0]
+            reqAns = math.sqrt(x * x + y * y)
+
+        # Case 2
+        elif (AB_AE < 0):
+            y = E[1] - A[1]
+            x = E[0] - A[0]
+            reqAns = math.sqrt(x * x + y * y)
+
+        # Case 3
+        else:
+            # Finding the perpendicular distance
+            x1 = AB[0]
+            y1 = AB[1]
+            x2 = AE[0]
+            y2 = AE[1]
+            mod = math.sqrt(x1 * x1 + y1 * y1)
+            reqAns = abs(x1 * y2 - y1 * x2) / mod
+
+        return round(reqAns, 3)
 
 
 class Cell(object):
@@ -433,12 +483,11 @@ if __name__ == "__main__":
     num_of_steps = 300
     for j in range(num_of_episode):
         fire_spread.reset()
-
         for i in range(num_of_steps):
             fire_spread.step()
             state = fire_spread.get_reduced_state()
             distance = fire_spread.get_distance_from_fire()
-            # print("episode:", j, ", step:", i, "state:", state["branch"])
+            print("episode:", j, ", step:", i, "distance:", distance["branches"])
 
     computation_time = (datetime.now() - start_time).total_seconds()
     print("total_computation_time:", computation_time)

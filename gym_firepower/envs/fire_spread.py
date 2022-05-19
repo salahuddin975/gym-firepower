@@ -489,5 +489,10 @@ if __name__ == "__main__":
             distance = fire_spread.get_distance_from_fire()
             print("episode:", j, ", step:", i, "distance:", distance["branches"])
 
+            # print("state:", fire_spread.get_state())
+            # print("reduced_state:", state)
+            # print("distance:", distance)
+
+
     computation_time = (datetime.now() - start_time).total_seconds()
     print("total_computation_time:", computation_time)

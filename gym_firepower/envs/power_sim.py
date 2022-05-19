@@ -5,7 +5,7 @@ from pypower.idx_bus import *
 from pypower.int2ext import *
 from pypower.ext2int import *
 import numpy as np
-from gym_firepower.envs.gams.models import initial_model, run_time_model
+from gym_firepower.envs.gams.models import initial_model_v2, run_time_model_v2
 from gams import *
 import sys
 import os
@@ -62,8 +62,8 @@ class PowerOperations(object):
         self.B = -1j * self.ybus
         # ommitting the imaginary part and converting to float
         self.B = self.B.astype('float64')
-        self.initial_model_text = initial_model
-        self.run_time_model_text = run_time_model
+        self.initial_model_text = initial_model_v2
+        self.run_time_model_text = run_time_model_v2
         self.initial_fire_state = initial_fire_state
         self.initial_action = {"generator_injection": np.zeros(self.num_tunable_generator, dtype=np.float32),
                                "branch_status": np.ones(self.num_branch, dtype=int),
@@ -103,6 +103,11 @@ class PowerOperations(object):
             self.power_flow_line_upper[c][r] += \
                 self.ppc_int["branch"][branch_ctr, RATE_A]/ self.ppc_int["baseMVA"]
             self.branch_status[c][r] = 1
+
+        # Node status
+        self.node_status = np.ones(self.num_bus, dtype=np.float32)
+        # Generator status
+        self.gen_status = np.ones(self.num_bus, dtype=np.float32)
 
         # List of load demand on each bus
         self.p_load_initial = self.ppc_int["bus"][:,PD]/ self.ppc_int["baseMVA"]
@@ -186,10 +191,13 @@ class PowerOperations(object):
                 self.B_.add_record((str(ctr_bus1), str(ctr_bus2))).value = float(self.B[ctr_bus1][ctr_bus2])
                 self.PLbar.add_record((str(ctr_bus1), str(ctr_bus2))).value = float(self.power_flow_line_upper[ctr_bus1][ctr_bus2])
                 self.LineStat.add_record((str(ctr_bus1), str(ctr_bus2))).value = float(self.branch_status[ctr_bus1][ctr_bus2])
-            
+
+            self.NodeStat.add_record(str(ctr_bus1)).value = float(self.bus_status[ctr_bus1])
+            self.GenStat.add_record(str(ctr_bus1)).value = float(self.gen_status[ctr_bus1])
+
             self.CritFrac.add_record((str(ctr_bus1), "1")).value = float(self.non_crtitcal_fractional[ctr_bus1][1])
             self.CritFrac.add_record((str(ctr_bus1), "2")).value = 1- float(self.non_crtitcal_fractional[ctr_bus1][1])
-        
+
         for ctr_c in range(2):
             self.CritVal.add_record(str(ctr_c+1)).value = float(self.weights[ctr_c])
         # print(self.pg_injection)
@@ -225,6 +233,10 @@ class PowerOperations(object):
             "PLbar", [self.i, self.i], "Line Flow Limits")
         self.LineStat = self.db.add_parameter_dc(
             "LineStat", [self.i, self.i], "Line Status")
+        self.NodeStat = self.db.add_parameter_dc(
+            "NodeStat", [self.i], "Node Status")
+        self.GenStat = self.db.add_parameter_dc(
+            "GenStat", [self.i], "Generator Status")
         self.Rampbar = self.db.add_parameter_dc(
             "Rampbar", [self.i], "Ramp rate limit")
         self.IntDur = self.db.add_parameter(
@@ -239,7 +251,7 @@ class PowerOperations(object):
     def _solve_initial_model(self):        
         # self._define_problem()
         # self.db.set_suppress_auto_domain_checking(True)
-        self._setup_problem(initial_model)
+        self._setup_problem(initial_model_v2)
         self._extract_results()
         assert self.has_converged, "Initial Model did not converge"
         # self.pg_injection_initial = deepcopy(self.pg_injection)
@@ -252,7 +264,7 @@ class PowerOperations(object):
         # self.branch_status_initial = deepcopy(self.branch_status)
     
     def _solve_runtime_model(self):
-        self._setup_problem(run_time_model)
+        self._setup_problem(run_time_model_v2)
         # self._extract_results(True)
         self._extract_results(True)
 
@@ -275,6 +287,9 @@ class PowerOperations(object):
             self.p_load_solved_distribution[0] = np.around(self.problem.out_db["p_solved_c"].first_record().value, 3)
             self.p_load_solved_distribution[1] =  np.around(self.problem.out_db["p_solved_nc"].first_record().value, 3)
             self.p_load_solved =  round(self.problem.out_db["p_solved"].first_record().value, 3)
+            self.gen_status = [self.problem.out_db["OutGen_val"]["{}".format(i)].get_level() for i in
+                               range(self.num_bus)]
+
             # keys = [ int(rec.keys[0]) for rec in self.problem.out_db["PLoad_"] ]
             # for key in keys:
                 # self.p_load_solved[key] = self.problem.out_db["PLoad_"][str(key)].value

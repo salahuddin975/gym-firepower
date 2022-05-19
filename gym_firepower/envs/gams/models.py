@@ -249,7 +249,7 @@ parameter                PGLbarT(i)       "Power generation lower limit",
 
 $if not set gdxincname $abort 'no include file name for data file provided'
 $gdxin %gdxincname%
-$load PGLbarT, PGUbarT, ThetaLbar, ThetaUbar, B, PLoad, PLbar, LineStat, Rampbar, IntDur, CritFrac, CritVal, PGBegin
+$load PGLbarT, PGUbarT, ThetaLbar, ThetaUbar, B, PLoad, PLbar, LineStat, NodeStat, GenStat, Rampbar, IntDur, CritFrac, CritVal, PGBegin
 $gdxin
 
 
@@ -305,7 +305,8 @@ solve PART minimizing z using miqcp
 
 * execute_unload 'soln01', Theta;
 
-parameter flow(i,j), flowP(i,j), flow2(i,j), ZVal, ZValP(i), PGn_total, Load_loss, DPLoad(i), PLoad_(i);
+parameter flow(i,j), flowP(i,j), flow2(i,j), ZVal, ZValP(i), PGn_total, Load_loss, DPLoad(i), PLoad_(i), p_solved_nc, p_solved_c, p_solved;
+variable OutGen_val(i);
 flow(i,j)  = LineFlow.l(i,j) - (Theta.l(i) - Theta.l(j))*B(i,j) + (1 - LineStat(i,j))*M2;
 flowP(i,j) = LineFlow.l(i,j) - (Theta.l(i) - Theta.l(j))*B(i,j) - (1 - LineStat(i,j))*M2;
 flow2(i,j) =  flow(i,j) + flow(j,i);
@@ -316,6 +317,13 @@ PGn_total = sum(i, PGn.l(i));
 DPLoad(i) = DPLoadC.l(i) + DPLoadNC.l(i);
 PLoad_(i) = PLoad(i) - DPLoad(i); 
 Load_loss = sum(i, DPLoad(i));
+p_solved_c = sum(i, PLoad(i)*CritFrac(i,'1')) -  sum(i, DPLoadC.l(i));
+p_solved_nc = sum(i, PLoad(i)*CritFrac(i,'2')) - sum(i, DPLoadNC.l(i));
+p_solved = sum(i, PLoad_(i));
+OutGen_val.lo(i) = 0;
+OutGen_val.up(i) = 0;
+OutGen_val.l(i) = 0;
+OutGen_val.fx(i) = OutGen.l(i);
 parameter ModStat        "Model status";
 ModStat = PART.modelstat;
 
@@ -355,7 +363,7 @@ parameter                PGLbarT(i)       "Power generation lower limit",
 
 $if not set gdxincname $abort 'no include file name for data file provided'
 $gdxin %gdxincname%
-$load PGLbarT, PGUbarT, ThetaLbar, ThetaUbar, B, PLoad, PLbar, LineStat, Rampbar, IntDur, CritFrac, CritVal, PGBegin
+$load PGLbarT, PGUbarT, ThetaLbar, ThetaUbar, B, PLoad, PLbar, LineStat, NodeStat, GenStat, Rampbar, IntDur, CritFrac, CritVal, PGBegin
 $gdxin
 
 binary variable   OutGen(i)            "Generator operating condition",
@@ -415,7 +423,8 @@ solve PART minimizing z using miqcp
 
 * execute_unload 'soln01', Theta;
 
-parameter flow(i,j), flowP(i,j), flow2(i,j), ZVal, ZValP(i), PGn_total, Load_loss, DPLoad(i), PLoad_(i);
+parameter flow(i,j), flowP(i,j), flow2(i,j), ZVal, ZValP(i), PGn_total, Load_loss, DPLoad(i), PLoad_(i), p_solved_nc, p_solved_c, p_solved;
+variable OutGen_val(i);
 flow(i,j)  = LineFlow.l(i,j) - (Theta.l(i) - Theta.l(j))*B(i,j) + (1 - LineStat(i,j))*M2;
 flowP(i,j) = LineFlow.l(i,j) - (Theta.l(i) - Theta.l(j))*B(i,j) - (1 - LineStat(i,j))*M2;
 flow2(i,j) =  flow(i,j) + flow(j,i);
@@ -426,6 +435,13 @@ PGn_total = sum(i, PGn.l(i));
 DPLoad(i) = DPLoadC.l(i) + DPLoadNC.l(i);
 PLoad_(i) = PLoad(i) - DPLoad(i); 
 Load_loss = sum(i, DPLoad(i));
+p_solved_c = sum(i, PLoad(i)*CritFrac(i,'1')) -  sum(i, DPLoadC.l(i));
+p_solved_nc = sum(i, PLoad(i)*CritFrac(i,'2')) - sum(i, DPLoadNC.l(i));
+p_solved = sum(i, PLoad_(i));
+OutGen_val.lo(i) = 0;
+OutGen_val.up(i) = 0;
+OutGen_val.l(i) = 0;
+OutGen_val.fx(i) = OutGen.l(i);
 parameter ModStat        "Model status";
 ModStat = PART.modelstat;
 

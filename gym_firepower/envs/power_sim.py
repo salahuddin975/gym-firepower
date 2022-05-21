@@ -307,16 +307,13 @@ class PowerOperations(object):
         
         # print(self.pg_injection)
         
-        for ctr in range(self.num_bus):
-            # Network Violations: node(x) = 0/1 then all branch(x,y) = 0/1
+        for ctr in range(self.num_bus):            # Network Violations: node(x) = 0/1 then all branch(x,y) = 0/1
             bus_status = action["bus_status"][ctr]
             for ctr2 in range(self.num_branch):
                 if ctr in [self.from_buses[ctr2], self.to_buses[ctr2]]:
                     if bus_status == 0  and action["branch_status"][ctr2] == 1:
                         logger.warn("Network Violation betweem bus {} and  branch ({}, {})".format(
                             ctr, self.from_buses[ctr2], self.to_buses[ctr2]))
-                        # print("Network Violation betweem bus {} and  branch ({}, {})".format(
-                        #     ctr, self.from_buses[ctr2], self.to_buses[ctr2]))
                         return True
         
         injections = {int(key): 0 for key in action["generator_selector"]}
@@ -324,7 +321,7 @@ class PowerOperations(object):
             injections[gen_pair[0]] += round(gen_pair[1],4)
         for gen_bus in injections:
             if gen_bus in self.ppc_int["gen"][:, GEN_BUS] and self.bus_status[gen_bus] != 0:
-                if abs(injections[gen_bus]) - self.ramp_upper_initial[gen_bus]  > 0.0001:
+                if abs(injections[gen_bus]) - self.ramp_upper_initial[gen_bus]  > 0.0001:         # Cumulative generator ramp rate violation
                     logger.warn("Cumulative generator ramp rate violation at gen bus {}, ".format(gen_bus))
                     logger.debug("Min : {}, Current : {} and Max : {}".format(
                         -1*self.ramp_upper_initial[gen_bus],
@@ -333,7 +330,7 @@ class PowerOperations(object):
                     ))
                     return True
                 if injections[gen_bus] + self.pg_injection[gen_bus] - self.pg_upper_initial[gen_bus] > 0.0001 or \
-                    injections[gen_bus] + self.pg_injection[gen_bus] - self.pg_lower_initial[gen_bus] < -0.0001 :
+                    injections[gen_bus] + self.pg_injection[gen_bus] - self.pg_lower_initial[gen_bus] < -0.0001 :       # Cumulative generator output violation
                     logger.warn("Cumulative generator output violation at bus {}".format(gen_bus))
                     logger.debug("Min : {}, Current : {} and Max : {}".format(
                         self.pg_lower_initial[gen_bus],
@@ -351,7 +348,7 @@ class PowerOperations(object):
             gen_bus = int(action["generator_selector"][i])
             if gen_bus in self.ppc_int["gen"][:, GEN_BUS] and self.bus_status[gen_bus] != 0:
                 # delta PG_Injection is greater than RAMP_RATE
-                if not -1*self.ramp_upper_initial[gen_bus] <= action["generator_injection"][i] <= self.ramp_upper_initial[gen_bus]:
+                if not -1*self.ramp_upper_initial[gen_bus] <= action["generator_injection"][i] <= self.ramp_upper_initial[gen_bus]:    # ramp rate violation
                     logger.warn("Gnerator ramp rate violation at gen bus {}, ".format(gen_bus))
                     # print("Gnerator ramp rate violation at gen bus {}, ".format(gen_bus))
                     logger.debug("Min : {}, Current : {} and Max : {}".format(

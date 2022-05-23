@@ -132,74 +132,7 @@ class PowerOperations(object):
         # self._initialize()
 
     def _initialize(self):
-        # Status of every bus
-        # self.ds.bus_status = np.ones(self.num_bus, dtype=int)
-        # # Upper limit of power flowing through a transmission line
-        # # its (num_bus x num_bus) matrix
-        # self.power_flow_line_upper = np.zeros((self.num_bus, self.num_bus), dtype=np.float32)
-        # self.power_flow_line = np.zeros((self.num_bus, self.num_bus), dtype=np.float32)
-        # self.ds.branch_status = np.zeros((self.num_bus, self.num_bus), dtype=np.float32)
-        # for branch_ctr in range(self.num_branch):
-        #     # branch -> (r,c)
-        #     r = self.from_buses[branch_ctr]
-        #     c = self.to_buses[branch_ctr]
-        #     self.power_flow_line_upper[r][c] += \
-        #         self.ppc_int["branch"][branch_ctr, RATE_A]/ self.ppc_int["baseMVA"]
-        #     self.ds.branch_status[r][c] = 1
-        #
-        #     # branch -> (c,r)
-        #     self.power_flow_line_upper[c][r] += \
-        #         self.ppc_int["branch"][branch_ctr, RATE_A]/ self.ppc_int["baseMVA"]
-        #     self.ds.branch_status[c][r] = 1
-        #
-        # # Node status
-        # self.node_status = np.ones(self.num_bus, dtype=np.float32)
-        # # Generator status
-        # self.gen_status = np.ones(self.num_bus, dtype=np.float32)
-        #
-        # # List of load demand on each bus
-        # self.ds.p_load_initial = self.ppc_int["bus"][:,PD]/ self.ppc_int["baseMVA"]
-        # self.p_load = deepcopy(self.ds.p_load_initial)
-        # # Upper power injection limit of each generator
-        # # This list contains non generator buses with upper limit set to 0
-        # self.pg_upper = np.zeros(self.num_bus, np.float64)
-        # # Lower power injection limit of each generator
-        # self.pg_lower = np.zeros(self.num_bus, np.float64)
-        # # Ramp rate limit of each generator
-        # self.ramp_upper = np.zeros(self.num_bus, np.float64)
-        # # Power injected by each generator
-        # # Initially this is provided by solving the load flow
-        # # Then in the successive iterations through the agent
-        # self.ds.pg_injection = np.zeros(self.num_bus, np.float64)
-        #
-        # sub_numbers = [1.9200, 1.9200, 0.0000, 0.0000,
-        #             0.0000, 0.0000, 3.0000, 0.0000,
-        #             0.0000, 0.0000, 0.0000, 0.0000,
-        #             5.9100, 0.0000, 2.1500, 1.5500,
-        #             0.0000, 1.9833, 0.0000, 0.0000,
-        #             1.9833, 3.0000, 5.0833, 0.0000]
-        #
-        # for gen in self.initial_load_flow["gen"]:
-        #     self.pg_lower[int(gen[GEN_BUS])] = gen[PMIN] / self.ppc_int["baseMVA"]
-        #     self.pg_upper[int(gen[GEN_BUS])] = gen[PMAX] / self.ppc_int["baseMVA"]
-        #     self.ramp_upper[int(gen[GEN_BUS])] = gen[RAMP_10] / self.ppc_int["baseMVA"]
-        #     self.ds.pg_injection[int(gen[GEN_BUS])] = gen[PG] / self.ppc_int["baseMVA"]
-        #
-        # # Overwriting Load Flow calculation with subir's numbers
-        # self.ds.pg_injection = sub_numbers
-        #
-        # # Voltage angle upper limit is pi/4
-        # self.theta_upper = (np.pi/4)*np.ones(self.num_bus, dtype=np.float64)
-        # # Voltage angle lower limit is -pi/4
-        # self.theta_lower = -1*(np.pi/4)*np.ones(self.num_bus, dtype=np.float64)
-        # self.theta = np.zeros(self.num_bus, dtype=np.float64)
-
         self.ds = DataSet(self.ppc_int, self.initial_load_flow, self.num_bus, self.num_branch, self.from_buses, self.to_buses)
-
-        # Setting and Running the optimizatin problem for the base case
-        # This is better than just load flow as  load flow will not
-        # take care of line limits. The other option could have been 
-        # dc opf in pypower
         self._solve_initial_model()
         
         self.previous_action = deepcopy(self.initial_action)
@@ -250,10 +183,6 @@ class PowerOperations(object):
 
         for ctr_c in range(2):
             self.CritVal.add_record(str(ctr_c+1)).value = float(self.weights[ctr_c])
-        # print(self.ds.pg_injection)
-        # print(self.ds.pg_upper)
-        # print(self.ds.pg_lower)
-        # print(self.ds.p_load)
         self.IntDur.add_record().value = self.sampling_duration
         self.problem = self.ws.add_job_from_string(opt_problem)
         opt = self.ws.add_options()
@@ -339,20 +268,10 @@ class PowerOperations(object):
             self.p_load_solved =  round(self.problem.out_db["p_solved"].first_record().value, 3)
             self.ds.gen_status = [self.problem.out_db["OutGen_val"]["{}".format(i)].get_level() for i in
                                range(self.num_bus)]
-
-            # keys = [ int(rec.keys[0]) for rec in self.problem.out_db["PLoad_"] ]
-            # for key in keys:
-                # self.p_load_solved[key] = self.problem.out_db["PLoad_"][str(key)].value
-            # print("solved ->", self.ds.pg_injection)
         else:
-        # if (induce_violation or model_status in [4, 5, 6, 9, 10, 14, 19]):
             self.has_converged = False
-            # logger.warn("Model did not converge, status {}".format(model_status))
             print("Model did not converge, status {}".format(model_status))
-        # logger.debug(list(zip(range(self.num_bus), self.ds.pg_injection)))
-        # logger.debug([[(self.from_buses[i], self.to_buses[i]),
-                # self.ds.power_flow_line[self.from_buses[i]][[self.to_buses[i]]]] for i in range(self.num_branch)])
-        
+
     def get_state(self):
         # print("Method PowerOperations.{} Not Implemented Yet".format("get_state"))
         state = {}
@@ -370,8 +289,6 @@ class PowerOperations(object):
         assert action["bus_status"].shape[0] == self.num_bus, "bus action dimenion miss-match "
         assert action["generator_selector"].shape[0] == self.num_tunable_generator, "generator selector dimenion miss-match "
         
-        # print(self.ds.pg_injection)
-        
         for ctr in range(self.num_bus):
             # Network Violations: node(x) = 0/1 then all branch(x,y) = 0/1
             bus_status = action["bus_status"][ctr]
@@ -380,8 +297,6 @@ class PowerOperations(object):
                     if bus_status == 0  and action["branch_status"][ctr2] == 1:
                         logger.warn("Network Violation betweem bus {} and  branch ({}, {})".format(
                             ctr, self.from_buses[ctr2], self.to_buses[ctr2]))
-                        # print("Network Violation betweem bus {} and  branch ({}, {})".format(
-                        #     ctr, self.from_buses[ctr2], self.to_buses[ctr2]))
                         return True
         
         injections = {int(key): 0 for key in action["generator_selector"]}
@@ -425,28 +340,7 @@ class PowerOperations(object):
                         self.pg_upper_initial[gen_bus]
                     ))
                     return True
-                # # PG_Injection is greater than PMAX
-                # if not self.pg_lower_initial[gen_bus] <= action["generator_injection"][i] + self.ds.pg_injection[gen_bus] <= self.pg_upper_initial[gen_bus]:
-                #     print("output", self.ds.pg_injection[gen_bus])
-                #     print("value", action["generator_injection"][i])
-                #     logger.warn("Generator output violation ({}) at bus {}".format(i, gen_bus))
-                #     # print("Generator output violation at bus {}".format(gen_bus))
-                #     logger.debug("Min : {}, Current : {} and Max : {}".format(
-                #         self.pg_lower_initial[gen_bus],
-                #         action["generator_injection"][i] +
-                #         self.ds.pg_injection[gen_bus],
-                #         self.pg_upper_initial[gen_bus]
-                #     ))
-                #     return True
-                # delta PG_Injection should be 0 for open generators
-                
-                # if action["bus_status"][gen_bus] == 0 and  np.abs(action["generator_injection"][i]) > 0.001:
-                #     logger.warn("Bus status and generator output violation at bus {}".format(gen_bus))
-                #     # print("Bus status and generator output violation at bus {}".format(gen_bus))
-                #     return True
-                
-                
-        
+
         # update pg_upper and pg_lower 
         for gen_bus in self.ppc_int["gen"][:,GEN_BUS]:
             gen_bus = int(gen_bus)
@@ -467,12 +361,7 @@ class PowerOperations(object):
     
     def _check_protection_system_actions(self, fire_state):
         protection_action_count = 0
-        # for key in fire_state:
-        #     for equipment in fire_state[key]:
-        #         if self.previous_fire_state[key][equipment] != fire_state[key][equipment]:
-        #             if fire_state[key][equipment] == 0:
-        #                 protection_action_count += 1
-        
+
         for branch in fire_state["branch"]:
             if fire_state["branch"][branch] != self.previous_fire_state["branch"][branch]:
                 if fire_state["branch"][branch] == 0:
@@ -482,10 +371,6 @@ class PowerOperations(object):
                             branch[0],
                             branch[1]
                         ))
-                        # print("Protection action at line ({}, {})".format(
-                        #     branch[0],
-                        #     branch[1]
-                        # ))
                     self.ds.branch_status[branch[0]][branch[1]] = 0
                     self.ds.branch_status[branch[1]][branch[0]] = 0
                     self.ds.power_flow_line_upper[branch[0]][branch[1]] = 0
@@ -568,11 +453,6 @@ class PowerOperations(object):
             int(key): 0 for key in self.previous_action["generator_selector"]}
         for gen_pair in zip(self.previous_action["generator_selector"], self.previous_action["generator_injection"]):
             previous_injections[gen_pair[0]] += gen_pair[1]
-        # print("previous injection")
-        # print(previous_injections)
-        # print("current injection")
-        # print(injections)
-        # print(injections == previous_injections)
         if not np.all(action["branch_status"] == self.previous_action["branch_status"]):
             logger.info("Branch status in the current action is different")
             return True
@@ -629,23 +509,6 @@ class PowerOperations(object):
             pass
             
     def reset(self):
-        # self.ds.pg_injection = deepcopy(self.pg_injection_initial)
-        # self.ds.theta =  deepcopy(self.theta_initial)
-        # self.ds.power_flow_line =  deepcopy(self.power_flow_line_initial)
-        # self.ds.ramp_upper = deepcopy(self.ramp_upper_initial)
-        # self.ds.pg_upper = deepcopy(self.pg_upper_initial)
-        # self.ds.pg_lower = deepcopy(self.pg_lower_initial)
-        # self.ds.p_load = deepcopy(self.ds.p_load_initial)
-        # self.p_load_solved = deepcopy(self.ds.p_load_initial)
-        # self.p_load_upper = deepcopy(self.ds.p_load)
-        # self.ds.branch_status = deepcopy(self.branch_status_initial)
-        # self.ds.bus_status = np.ones(self.num_bus, int)
-        # self.has_converged = True
-        # self.previous_action = deepcopy(self.initial_action)
-        # self.previous_fire_state = deepcopy(self.initial_fire_state)
-        # self.live_equipment_removal_count = 0
-        # self.protection_action_count = 0
-        # self.live_equipment_removal_penalty = 0
         self._remove_temp_files()
         self._initialize()
         return self.get_state()
@@ -721,5 +584,3 @@ class PowerOperations(object):
         ppc["branch"] = np.asarray(ppc_branch_trim)
 
 
-'''
-'''

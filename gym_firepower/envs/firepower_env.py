@@ -109,7 +109,8 @@ class FirePowerEnv(gym.Env):
             protection_penalty = self.power_sys_model.get_protection_operation_count() * self.pa_penalty
             active_line_removal = -1 * self.power_sys_model.get_active_line_removal_penalty() * 25
 
-            return load_loss + active_line_removal, load_loss
+            return load_loss, load_loss
+            # return load_loss + active_line_removal, load_loss
             # return load_loss + protection_penalty + active_line_removal, load_loss
         else:
             return (self.nc_penalty, 0)

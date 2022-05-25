@@ -473,31 +473,26 @@ class PowerOperations(object):
     def step(self, action, fire_state):
         self.protection_action_count = 0
         self.live_equipment_removal_penalty = 0
-        # Handling floating point errors here
         action["generator_injection"] = np.around(action["generator_injection"], 4)
-            # round(injection, 4) for injection in action["generator_injection"]]
-        # Do I need to do anything in this step
-        if self._any_change_action(action) or self._any_change_fire_state(fire_state):
-            logger.info("Current action will cause a change")
-            # Check for violations
+
+        if self._any_change_action(action) or self._any_change_fire_state(fire_state):    # Do I need to do anything in this step
             has_violations  = self._check_violations(action)
             if not has_violations:
                 self.has_converged = True
-                # Identify protection system operation counts
-                self._check_protection_system_actions(fire_state)
-                # Identify live line removal operation counts
-                self._check_live_line_removal_actions(action["branch_status"], action["bus_status"])
+                self._check_protection_system_actions(fire_state)   # Identify protection system operation counts
+                self._check_live_line_removal_actions(action["branch_status"], action["bus_status"])  # Identify live line removal operation counts
+
                 # Pg_injections, Pg_upper, Pg_lower, P_load, P_load_upper
                 # Branch_status, P_line_flow_upper, Ramp_upper has been updated
                 self.previous_action = deepcopy(action)
                 self.previous_fire_state = deepcopy(fire_state)
+
                 self._solve_runtime_model()
             else:
                 self.has_converged = False
-                logger.warn("Skipping this episode because of a violation")
-                # print("Skipping this episode because of a violation")
+                logger.warn("Got non-convergence in the simulation checking")
+                print("Got non-convergence in the simulation checking")
         else:
-            # Change to logger later
             logger.info("Skipping this iteration as no change detected")
             # print("Skipping this iteration as no change detected")
             pass

@@ -65,6 +65,44 @@ class DataSet:
         self.theta = np.zeros(num_bus, dtype=np.float64)
 
 
+class GamsDB:
+    def __init__(self):
+        path = pathlib.Path(__file__).parent.absolute()
+        self.gams_dir = os.path.join(path, "gams", "temp", "pid_{}".format(os.getpid()) )
+        try:
+            os.makedirs(self.gams_dir, exist_ok=True)
+        except OSError:
+            assert False, "Cannot create temporary directory"
+
+        self.ws = GamsWorkspace(working_directory=self.gams_dir, debug=DebugLevel.Off)
+        self.db = self.ws.add_database()
+        self._define_problem()
+
+    def _define_problem(self):
+        self.i = self.db.add_set("i", 1, "Set of nodes")
+        self.c = self.db.add_set("c", 1, "Load divided based on criticality")
+
+        self.NodeStat = self.db.add_parameter_dc("NodeStat", [self.i], "Node Status")
+        self.GenStat = self.db.add_parameter_dc("GenStat", [self.i], "Generator Status")
+        self.LineStat = self.db.add_parameter_dc("LineStat", [self.i, self.i], "Line Status")
+
+        self.PGBegin = self.db.add_parameter_dc("PGBegin", [self.i], "Generation at the begining")
+        self.PLoad = self.db.add_parameter_dc("PLoad", [self.i], "Load value")
+        self.PGLbarT = self.db.add_parameter_dc("PGLbarT", [self.i], "Power generation lower limit")
+        self.PGUbarT = self.db.add_parameter_dc("PGUbarT", [self.i], "Power generation upper limit")
+        self.Rampbar = self.db.add_parameter_dc("Rampbar", [self.i], "Ramp rate limit")
+
+        self.PLbar = self.db.add_parameter_dc("PLbar", [self.i, self.i], "Line Flow Limits")
+        self.ThetaLbar = self.db.add_parameter_dc("ThetaLbar", [self.i], "Power angle lower limit")
+        self.ThetaUbar = self.db.add_parameter_dc("ThetaUbar", [self.i], "Power angle upper limit")
+
+        self.B_ = self.db.add_parameter_dc("B", [self.i, self.i], "Admittance matrix")
+        self.IntDur = self.db.add_parameter("IntDur", 0, "Duration of a typical interval")
+        self.CritFrac = self.db.add_parameter_dc("CritFrac", [self.i, self.c], "Fraction of loads critical and non-critical")
+        self.CritVal = self.db.add_parameter_dc("CritVal", [self.c], "Value of the critical load")
+
+
+
 class PowerOperations(object):
     def __init__(self, ppc_int, initial_fire_state, sampling_duration, num_tunable_generator):
         # Sampling interval

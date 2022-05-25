@@ -66,7 +66,23 @@ class DataSet:
 
 
 class GamsDB:
-    def __init__(self):
+    def __init__(self, ppc_int, sampling_duration):
+        assert sampling_duration > 0, "Sampling duration should be a positive number"
+        self.sampling_duration = sampling_duration
+
+        self.ppc_int = ppc_int
+        self.num_bus = self.ppc_int["bus"].shape[0]
+        self.num_branch = self.ppc_int["branch"].shape[0]
+        self.from_buses = self.ppc_int["branch"][:, F_BUS].astype('int')
+        self.to_buses = self.ppc_int["branch"][:, T_BUS].astype('int')
+
+        self._cretae_ybus()           # Creating ybus
+        self.B = -1j * self.ybus
+        self.B = self.B.astype('float64')          # ommitting the imaginary part and converting to float
+
+        self.non_crtitcal_fractional = self.ppc_int["noncrticalfrac"]
+        self.weights = self.ppc_int["weights"]     # Weight associated with critical, non-critical load
+
         path = pathlib.Path(__file__).parent.absolute()
         self.gams_dir = os.path.join(path, "gams", "temp", "pid_{}".format(os.getpid()) )
         try:
@@ -77,6 +93,20 @@ class GamsDB:
         self.ws = GamsWorkspace(working_directory=self.gams_dir, debug=DebugLevel.Off)
         self.db = self.ws.add_database()
         self._define_problem()
+
+    def _cretae_ybus(self):
+        self.ybus = np.zeros((self.num_bus, self.num_bus), dtype=np.complex_)
+        self.branch_impedance = 1j * self.ppc_int["branch"][:, BR_X]          # branch resistance is assumed to be zero (DC loadflow)
+        self.branch_admittance = 1 / self.branch_impedance
+
+        for branch_ctr in range(0, self.num_branch):
+            self.ybus[self.from_buses[branch_ctr], self.to_buses[branch_ctr]] -= self.branch_admittance[branch_ctr]
+            self.ybus[self.to_buses[branch_ctr], self.from_buses[branch_ctr]] = self.ybus[self.from_buses[branch_ctr], self.to_buses[branch_ctr]]
+
+        for bus_ctr in range(0, self.num_bus):
+            for branch_ctr in range(0, self.num_branch):
+                if self.from_buses[branch_ctr] == bus_ctr or self.to_buses[branch_ctr] == bus_ctr:
+                    self.ybus[bus_ctr, bus_ctr] += self.branch_admittance[branch_ctr]
 
     def _define_problem(self):
         self.i = self.db.add_set("i", 1, "Set of nodes")
@@ -101,6 +131,65 @@ class GamsDB:
         self.CritFrac = self.db.add_parameter_dc("CritFrac", [self.i, self.c], "Fraction of loads critical and non-critical")
         self.CritVal = self.db.add_parameter_dc("CritVal", [self.c], "Value of the critical load")
 
+    def _setup_problem(self, opt_problem, ds):
+        self.db.clear()
+
+        for ctr in range(1, 3):
+            self.c.add_record(str(ctr))
+
+        for ctr_bus1 in range(self.num_bus):
+            self.i.add_record(str(ctr_bus1))
+            self.PGLbarT.add_record(str(ctr_bus1)).value = ds.pg_lower[ctr_bus1]
+            self.PGUbarT.add_record(str(ctr_bus1)).value = ds.pg_upper[ctr_bus1]
+            self.ThetaLbar.add_record(str(ctr_bus1)).value = ds.theta_lower[ctr_bus1]
+            self.ThetaUbar.add_record(str(ctr_bus1)).value = ds.theta_upper[ctr_bus1]
+            self.PLoad.add_record(str(ctr_bus1)).value = ds.p_load[ctr_bus1]
+            self.Rampbar.add_record(str(ctr_bus1)).value = ds.ramp_upper[ctr_bus1]
+            self.PGBegin.add_record(str(ctr_bus1)).value = ds.pg_injection[ctr_bus1]
+            for ctr_bus2 in range(self.num_bus):
+                self.B_.add_record((str(ctr_bus1), str(ctr_bus2))).value = float(self.B[ctr_bus1][ctr_bus2])
+                self.PLbar.add_record((str(ctr_bus1), str(ctr_bus2))).value = float(ds.power_flow_line_upper[ctr_bus1][ctr_bus2])
+                self.LineStat.add_record((str(ctr_bus1), str(ctr_bus2))).value = float(ds.branch_status[ctr_bus1][ctr_bus2])
+
+            self.NodeStat.add_record(str(ctr_bus1)).value = float(ds.bus_status[ctr_bus1])
+            self.GenStat.add_record(str(ctr_bus1)).value = float(ds.gen_status[ctr_bus1])
+
+            self.CritFrac.add_record((str(ctr_bus1), "1")).value = float(self.non_crtitcal_fractional[ctr_bus1][1])
+            self.CritFrac.add_record((str(ctr_bus1), "2")).value = 1- float(self.non_crtitcal_fractional[ctr_bus1][1])
+
+        for ctr_c in range(2):
+            self.CritVal.add_record(str(ctr_c+1)).value = float(self.weights[ctr_c])
+        self.IntDur.add_record().value = self.sampling_duration
+        self.problem = self.ws.add_job_from_string(opt_problem)
+        opt = self.ws.add_options()
+        opt.defines["gdxincname"] = self.db.name
+        self.problem.run(opt, databases=self.db)
+
+    def _extract_results(self, ds):
+        p_load_solved = 0.0
+        # self.p_load_solved_distribution = np.array([0,0], dtype=float)    # (critical load, non critical load)
+        model_status  = int(self.problem.out_db["ModStat"].first_record().value)
+
+        if model_status not in [3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 18, 19]:
+            # self.has_converged = True
+            ds.theta = [self.problem.out_db["Theta"]["{}".format(i)].get_level() for i in range(self.num_bus)]
+            ds.pg_injection = np.around([self.problem.out_db["PGn"]["{}".format(i)].get_level() for i in range(self.num_bus)], 4)
+            for i in range(self.num_branch):
+                from_bus = self.from_buses[i]
+                to_bus = self.to_buses[i]
+                ds.power_flow_line[from_bus][to_bus] = self.problem.out_db["LineFlow"][(str(from_bus), str(to_bus))].get_level()
+                ds.power_flow_line[to_bus][from_bus] = self.problem.out_db["LineFlow"][(str(to_bus), str(from_bus))].get_level()
+            # self.zval = self.problem.out_db["ZVal"].first_record().value
+            # self.load_loss = self.problem.out_db["Load_loss"].first_record().value
+            # self.p_load_solved_distribution[0] = np.around(self.problem.out_db["p_solved_c"].first_record().value, 3)
+            # self.p_load_solved_distribution[1] =  np.around(self.problem.out_db["p_solved_nc"].first_record().value, 3)
+            p_load_solved =  round(self.problem.out_db["p_solved"].first_record().value, 3)
+            ds.gen_status = [self.problem.out_db["OutGen_val"]["{}".format(i)].get_level() for i in range(self.num_bus)]
+            return (True, p_load_solved)
+        else:
+            print("Model did not converge, status {}".format(model_status))
+            return (False, p_load_solved)
+            # self.has_converged = False
 
 
 class PowerOperations(object):
@@ -143,11 +232,13 @@ class PowerOperations(object):
         self.num_gen = self.ppc_int["gen"].shape[0]
         self.gen_buses = self.ppc_int["gen"][:,0]
         self.gen_buses = np.vectorize(lambda x: int(x))(self.gen_buses)
+
         # Creating ybus
         self._cretae_ybus()
         self.B = -1j * self.ybus
         # ommitting the imaginary part and converting to float
         self.B = self.B.astype('float64')
+
         self.initial_model_text = initial_model_v2
         self.run_time_model_text = run_time_model_v2
         self.initial_fire_state = initial_fire_state
@@ -563,14 +654,14 @@ class PowerOperations(object):
     def get_load_loss(self):
         return round(sum(self.ds.p_load_initial) - self.p_load_solved, 3)
     
-    def get_load_loss_weighted(self):
-        # non critical load
-        non_critical_loss = sum(self.ds.p_load_initial * (1- float(self.non_crtitcal_fractional[ctr_bus1][1]))) - sum(self.p_load_solved_distribution[1])
-        # critical load
-        critical_loss = sum(self.ds.p_load_initial * float(self.non_crtitcal_fractional[ctr_bus1][1])) - sum(self.p_load_solved_distribution[0])
-        # total load
-        weighted_load_loss = non_critical_loss*self.weights[1] + critical_loss*self.weights[0]
-        return weighted_load_loss
+    # def get_load_loss_weighted(self):
+    #     # non critical load
+    #     non_critical_loss = sum(self.ds.p_load_initial * (1- float(self.non_crtitcal_fractional[ctr_bus1][1]))) - sum(self.p_load_solved_distribution[1])
+    #     # critical load
+    #     critical_loss = sum(self.ds.p_load_initial * float(self.non_crtitcal_fractional[ctr_bus1][1])) - sum(self.p_load_solved_distribution[0])
+    #     # total load
+    #     weighted_load_loss = non_critical_loss*self.weights[1] + critical_loss*self.weights[0]
+    #     return weighted_load_loss
     
     def get_status(self):
         # print("Method PowerOperations.{} Not Implemented Yet".format("get_status"))

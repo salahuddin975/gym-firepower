@@ -413,28 +413,29 @@ class PowerOperations(object):
         self.live_equipment_removal_count += live_equipment_removal_count
 
     def _any_change_action(self, action):
-        injections = {
-            int(key): 0 for key in action["generator_selector"]}
+        injections = {int(key): 0 for key in action["generator_selector"]}
         for gen_pair in zip(action["generator_selector"], action["generator_injection"]):
             injections[gen_pair[0]] += gen_pair[1]
-        previous_injections = {
-            int(key): 0 for key in self.previous_action["generator_selector"]}
+
+        previous_injections = {int(key): 0 for key in self.previous_action["generator_selector"]}
         for gen_pair in zip(self.previous_action["generator_selector"], self.previous_action["generator_injection"]):
             previous_injections[gen_pair[0]] += gen_pair[1]
+
         if not np.all(action["branch_status"] == self.previous_action["branch_status"]):
             logger.info("Branch status in the current action is different")
             return True
         if not np.all(action["bus_status"] == self.previous_action["bus_status"]):
             logger.info("Bus status in the current action is different")
             return True
+
         if not injections == previous_injections:
             logger.info("Injections in the current action are different")
             return True
+
         for gen in injections:
             if gen in self.ppc_int["gen"][:, GEN_BUS]:
                 if injections[gen] > 0.0001 or injections[gen] < -0.0001:
-                    logger.info(
-                        "There exists atleast one non zero injection in current action")
+                    logger.info("There exists atleast one non zero injection in current action")
                     return True
         
         logger.info("Current action will not cause any change")
@@ -474,7 +475,7 @@ class PowerOperations(object):
         self.live_equipment_removal_penalty = 0
         action["generator_injection"] = np.around(action["generator_injection"], 4)
 
-        if self._any_change_action(action) or self._any_change_fire_state(fire_state):    # Do I need to do anything in this step
+        if self._any_change_action(action) or self._any_change_fire_state(fire_state):
             has_violations  = self._check_violations(action)
             if not has_violations:
                 self.has_converged = True

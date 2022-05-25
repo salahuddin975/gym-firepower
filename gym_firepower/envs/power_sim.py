@@ -202,7 +202,7 @@ class PowerOperations(object):
         self.from_buses = self.ppc_int["branch"][:, F_BUS].astype('int')  # List of 'from' buses (one end of a transmission line)
         self.to_buses = self.ppc_int["branch"][:, T_BUS].astype('int')  # List of 'to' buses (other end of a transmission line)
 
-        self.p_load_upper = self.ppc_int["bus"][:,PD] / self.ppc_int["baseMVA"]  # List of upper threshold of load demand on each bus
+        # self.p_load_upper = self.ppc_int["bus"][:,PD] / self.ppc_int["baseMVA"]  # List of upper threshold of load demand on each bus
         self.non_crtitcal_fractional = self.ppc_int["noncrticalfrac"]   # Portion of a load at bus thats critical
         self.weights = self.ppc_int["weights"]  # Weight associated with critical, non-critical load
 
@@ -357,7 +357,7 @@ class PowerOperations(object):
                     self._shared_ds.pg_upper[node] = 0
                     self._shared_ds.ramp_upper[node] = 0
                     self._shared_ds.p_load[node] = 0
-                    self.p_load_upper[node] = 0
+                    # self.p_load_upper[node] = 0
                     self._shared_ds.bus_status[node] = 0
 
         self.protection_action_count += protection_action_count
@@ -401,14 +401,13 @@ class PowerOperations(object):
                         # print("Removing a live generator at bus {}".format(ctr))
                         live_equipment_removal_count += 1
                         gen_bus = int(np.where(self.gen_buses == ctr)[0][0])
-                        self.live_equipment_removal_penalty += abs(
-                            (self._shared_ds.pg_injection[ctr] * self.ppc_int["baseMVA"]) - self.ppc_int["gen"][gen_bus, PMIN])
+                        self.live_equipment_removal_penalty += abs((self._shared_ds.pg_injection[ctr] * self.ppc_int["baseMVA"]) - self.ppc_int["gen"][gen_bus, PMIN])
                     self._shared_ds.pg_injection[ctr] = 0
                     self._shared_ds.pg_lower[ctr] = 0
                     self._shared_ds.pg_upper[ctr] = 0
                     self._shared_ds.ramp_upper[ctr] = 0
                     self._shared_ds.p_load[ctr] = 0
-                    self.p_load_upper[ctr] = 0
+                    # self.p_load_upper[ctr] = 0
                     self._shared_ds.bus_status[ctr] = 0
 
         self.live_equipment_removal_count += live_equipment_removal_count

@@ -18,7 +18,7 @@ import glob
 pp = PrettyPrinter(compact=True, depth=3)
 
 
-class DataSet:
+class SharedDataSet:
     def __init__(self, ppc_int, initial_load_flow, num_bus, num_branch, from_buses, to_buses):
         self.bus_status = np.ones(num_bus, dtype=int)
         self.branch_status = np.zeros((num_bus, num_bus), dtype=np.float32)
@@ -65,7 +65,7 @@ class DataSet:
         self.theta = np.zeros(num_bus, dtype=np.float64)
 
 
-class GamsDB:
+class GamsInterface:
     def __init__(self, ppc_int, sampling_duration, gams_dir):
         assert sampling_duration > 0, "Sampling duration should be a positive number"
         self.sampling_duration = sampling_duration
@@ -223,11 +223,11 @@ class PowerOperations(object):
         except OSError:
             assert False, "Cannot create temporary directory"
 
-        self._gams_db = GamsDB(ppc_int, sampling_duration, self.gams_dir)
+        self._gams_db = GamsInterface(ppc_int, sampling_duration, self.gams_dir)
         self._initialize()
 
     def _initialize(self):
-        self.ds = DataSet(self.ppc_int, self.initial_load_flow, self.num_bus, self.num_branch, self.from_buses, self.to_buses)
+        self.ds = SharedDataSet(self.ppc_int, self.initial_load_flow, self.num_bus, self.num_branch, self.from_buses, self.to_buses)
         self._solve_initial_model()
         
         self.previous_action = deepcopy(self.initial_action)

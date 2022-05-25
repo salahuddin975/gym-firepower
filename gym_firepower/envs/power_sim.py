@@ -252,17 +252,6 @@ class PowerOperations(object):
         self._gams_db.setup_problem(run_time_model_v2, self.ds)
         self.has_converged, self.p_load_solved = self._gams_db.extract_results(self.ds)
 
-    def get_state(self):
-        # print("Method PowerOperations.{} Not Implemented Yet".format("get_state"))
-        state = {}
-        state["generator_injection"] = self.ds.pg_injection
-        state["load_demand"] = self.ds.p_load
-        state["branch_status"] = np.array([self.ds.branch_status[self.from_buses[ctr]][self.to_buses[ctr]] for ctr in range(self.num_branch)])
-        state["theta"] = self.ds.theta
-        state["bus_status"] = self.ds.bus_status
-        state["line_flow"] = np.array([self.ds.power_flow_line[self.from_buses[ctr]][self.to_buses[ctr]] for ctr in range(self.num_branch)])
-        return deepcopy(state)
-
     def _check_violations(self, action):
         # assert action["generator_injection"].shape[0] == self.num_tunable_generator, "generator action dimenion miss-match "
         # assert action["branch_status"].shape[0] == self.num_branch, "branch action dimenion miss-match "
@@ -456,6 +445,31 @@ class PowerOperations(object):
         return self.previous_fire_state["node"] != fire_state["node"] or \
             self.previous_fire_state["branch"] != fire_state["branch"]
 
+    def _remove_temp_files(self):
+        temp_files = glob.glob(os.path.join(self.gams_dir, '_gams_py_*'))
+        logger.debug("Deleting {} files from directory {}".format(len(temp_files), self.gams_dir))
+        for temp_file in temp_files:
+            try:
+                os.remove(temp_file)
+            except:
+                logger.warn("Not able to remove {}".format(temp_file))
+
+    def reset(self):
+        self._remove_temp_files()
+        self._initialize()
+        return self.get_state()
+
+    def get_state(self):
+        # print("Method PowerOperations.{} Not Implemented Yet".format("get_state"))
+        state = {}
+        state["generator_injection"] = self.ds.pg_injection
+        state["load_demand"] = self.ds.p_load
+        state["branch_status"] = np.array([self.ds.branch_status[self.from_buses[ctr]][self.to_buses[ctr]] for ctr in range(self.num_branch)])
+        state["theta"] = self.ds.theta
+        state["bus_status"] = self.ds.bus_status
+        state["line_flow"] = np.array([self.ds.power_flow_line[self.from_buses[ctr]][self.to_buses[ctr]] for ctr in range(self.num_branch)])
+        return deepcopy(state)
+
     def step(self, action, fire_state):
         self.protection_action_count = 0
         self.live_equipment_removal_penalty = 0
@@ -473,11 +487,11 @@ class PowerOperations(object):
                 self._check_protection_system_actions(fire_state)
                 # Identify live line removal operation counts
                 self._check_live_line_removal_actions(action["branch_status"], action["bus_status"])
-                # Pg_injections, Pg_upper, Pg_lower, P_load, P_load_upper 
+                # Pg_injections, Pg_upper, Pg_lower, P_load, P_load_upper
                 # Branch_status, P_line_flow_upper, Ramp_upper has been updated
                 self.previous_action = deepcopy(action)
                 self.previous_fire_state = deepcopy(fire_state)
-                self._solve_runtime_model() 
+                self._solve_runtime_model()
             else:
                 self.has_converged = False
                 logger.warn("Skipping this episode because of a violation")
@@ -487,20 +501,9 @@ class PowerOperations(object):
             logger.info("Skipping this iteration as no change detected")
             # print("Skipping this iteration as no change detected")
             pass
-            
-    def reset(self):
-        self._remove_temp_files()
-        self._initialize()
-        return self.get_state()
-        
-    def _remove_temp_files(self):
-        temp_files = glob.glob(os.path.join(self.gams_dir, '_gams_py_*'))
-        logger.debug("Deleting {} files from directory {}".format(len(temp_files), self.gams_dir))
-        for temp_file in temp_files:
-            try:
-                os.remove(temp_file)
-            except:
-                logger.warn("Not able to remove {}".format(temp_file))
+
+    def get_status(self):
+        return not self.has_converged
 
     def get_load_loss(self):
         return round(sum(self.ds.p_load_initial) - self.p_load_solved, 3)
@@ -514,12 +517,7 @@ class PowerOperations(object):
     #     weighted_load_loss = non_critical_loss*self.weights[1] + critical_loss*self.weights[0]
     #     return weighted_load_loss
     
-    def get_status(self):
-        # print("Method PowerOperations.{} Not Implemented Yet".format("get_status"))
-        return not self.has_converged
-    
     def get_protection_operation_count(self):
-        # print("Method PowerOperations.{} Not Implemented Yet".format("get_protection_operaton_count"))
         return self.protection_action_count
     
     def get_active_line_removal_count(self):

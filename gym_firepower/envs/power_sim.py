@@ -124,7 +124,7 @@ class GamsInterface:
         self.CritFrac = self.db.add_parameter_dc("CritFrac", [self.i, self.c], "Fraction of loads critical and non-critical")
         self.CritVal = self.db.add_parameter_dc("CritVal", [self.c], "Value of the critical load")
 
-    def setup_problem(self, opt_problem, ds):
+    def setup_problem(self, opt_problem, ds, episode, step):
         self.db.clear()
 
         for ctr in range(1, 3):
@@ -153,6 +153,27 @@ class GamsInterface:
         for ctr_c in range(2):
             self.CritVal.add_record(str(ctr_c+1)).value = float(self.weights[ctr_c])
         self.IntDur.add_record().value = self.sampling_duration
+
+
+        # print("power_sime: episode:", episode, "; step: ", step)
+        #
+        # print("PGLbarT:", ds.pg_lower)
+        # print("PGUbarT: ", ds.pg_upper)
+        # print("ThetaLbar: ", ds.theta_lower)
+        # print("ThetaUbar: ", ds.theta_upper)
+        # print("PLoad: ", ds.p_load)
+        # print("Rampbar: ", ds.ramp_upper)
+        # print("PGBegin: ", ds.pg_injection)
+        # # print("B_: ", self.B)
+        # # print("PLbar: ", ds.power_flow_line_upper)
+        # # print("LineStat: ", ds.branch_status)
+        # print("NodeStat: ", ds.bus_status)
+        # print("GenStat: ", ds.gen_status)
+        #
+        # print("CritFrac: ", self.non_crtitcal_fractional)
+        # print("CritVal: ", self.weights)
+        # print("IntDur: ", self.sampling_duration)
+
         self.problem = self.ws.add_job_from_string(opt_problem)
         opt = self.ws.add_options()
         opt.defines["gdxincname"] = self.db.name
@@ -187,6 +208,8 @@ class GamsInterface:
 
 class PowerOperations(object):
     def __init__(self, ppc_int, initial_fire_state, sampling_duration, num_tunable_generator):
+        self.step_no = 0
+        self.episode_no = 0
         self.ppc_int = ppc_int            # This ppc is based on the internal numbering
         self.ppc_ext = int2ext(ppc_int)   # This ppc is based on external numbering
         self.initial_load_flow = rundcpf(self.ppc_ext)   # Initial Load Flow based on internal numbering
@@ -237,7 +260,7 @@ class PowerOperations(object):
         self.live_equipment_removal_penalty = 0
 
     def _solve_initial_model(self):        
-        self._gams_interface.setup_problem(initial_model_v2, self._shared_ds)
+        self._gams_interface.setup_problem(initial_model_v2, self._shared_ds, self.episode_no, self.step_no)
         self.has_converged, self.p_load_solved = self._gams_interface.extract_results(self._shared_ds)
 
         assert self.has_converged, "Initial Model did not converge"
@@ -249,7 +272,7 @@ class PowerOperations(object):
         self.pg_lower_initial = deepcopy(self._shared_ds.pg_lower)
 
     def _solve_runtime_model(self):
-        self._gams_interface.setup_problem(run_time_model_v2, self._shared_ds)
+        self._gams_interface.setup_problem(run_time_model_v2, self._shared_ds, self.episode_no, self.step_no)
         self.has_converged, self.p_load_solved = self._gams_interface.extract_results(self._shared_ds)
 
     def _check_violations(self, action):
@@ -336,10 +359,7 @@ class PowerOperations(object):
                 if fire_state["branch"][branch] == 0:
                     if self._shared_ds.branch_status[branch[0]][branch[1]] == 1:
                         protection_action_count += 1
-                        logger.info("Protection action at line ({}, {})".format(
-                            branch[0],
-                            branch[1]
-                        ))
+                        logger.info("Protection action at line ({}, {})".format(branch[0], branch[1]))
                     self._shared_ds.branch_status[branch[0]][branch[1]] = 0
                     self._shared_ds.branch_status[branch[1]][branch[0]] = 0
                     self._shared_ds.power_flow_line_upper[branch[0]][branch[1]] = 0
@@ -351,13 +371,11 @@ class PowerOperations(object):
                     if self._shared_ds.pg_injection[node] > 0.001:
                         protection_action_count += 1
                         logger.info("Protection action at bus {}".format(node))
-                        # print("Protection action at bus {}".format(node))
                     self._shared_ds.pg_injection[node] = 0
                     self._shared_ds.pg_lower[node] = 0
                     self._shared_ds.pg_upper[node] = 0
                     self._shared_ds.ramp_upper[node] = 0
                     self._shared_ds.p_load[node] = 0
-                    # self.p_load_upper[node] = 0
                     self._shared_ds.bus_status[node] = 0
 
         self.protection_action_count += protection_action_count
@@ -468,9 +486,16 @@ class PowerOperations(object):
         state["theta"] = self._shared_ds.theta
         state["bus_status"] = self._shared_ds.bus_status
         state["line_flow"] = np.array([self._shared_ds.power_flow_line[self.from_buses[ctr]][self.to_buses[ctr]] for ctr in range(self.num_branch)])
+
+        # print("power_sim: episode:", self.episode_no, "; step:", self.step_no, "; generation_output:", np.sum(state["generator_injection"]), "; load_demand:", np.sum(state["load_demand"]))
         return deepcopy(state)
 
     def step(self, action, fire_state):
+        # print("power_sim: episode:", action["episode"], "step: ", action["step_count"], "; fire_state_node: ", fire_state["node"])
+        # print("power_sim: episode:", action["episode"], "step: ", action["step_count"], "; fire_state_branch: ", fire_state["branch"])
+        self.episode_no = action["episode"]
+        self.step_no = action["step_count"]
+
         self.protection_action_count = 0
         self.live_equipment_removal_penalty = 0
         action["generator_injection"] = np.around(action["generator_injection"], 4)

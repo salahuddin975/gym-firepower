@@ -414,9 +414,10 @@ OutGen.up(i) = GenStat(i);
 
 
 model PART /all/;
-PART.nodLim = 500;
-PART.domlim  = 10000;
+* PART.nodLim = 500;
+* PART.domlim  = 10000;
 *PART.optfile = 1;
+PART.optcr = 0.0001
 
 option miqcp = scip;
 solve PART minimizing z using miqcp

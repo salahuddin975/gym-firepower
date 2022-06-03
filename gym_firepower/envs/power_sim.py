@@ -255,6 +255,9 @@ class PowerOperations(object):
         
         self.previous_action = deepcopy(self.initial_action)
         self.previous_fire_state = deepcopy(self.initial_fire_state)
+        self.previous_power_generations = [np.array([0] * 24)]
+        self.previous_power_generations. append(deepcopy(self._shared_ds.pg_injection))
+
         self.protection_action_count = 0
         self.live_equipment_removal_count = 0
         self.live_equipment_removal_penalty = 0
@@ -281,15 +284,17 @@ class PowerOperations(object):
         # assert action["bus_status"].shape[0] == self.num_bus, "bus action dimenion miss-match "
         # assert action["generator_selector"].shape[0] == self.num_tunable_generator, "generator selector dimenion miss-match "
         #
-        # for ctr in range(self.num_bus):
-        #     # Network Violations: node(x) = 0/1 then all branch(x,y) = 0/1
-        #     bus_status = action["bus_status"][ctr]
-        #     for ctr2 in range(self.num_branch):
-        #         if ctr in [self.from_buses[ctr2], self.to_buses[ctr2]]:
-        #             if bus_status == 0  and action["branch_status"][ctr2] == 1:
-        #                 logger.warn("Network Violation betweem bus {} and  branch ({}, {})".format(
-        #                     ctr, self.from_buses[ctr2], self.to_buses[ctr2]))
-        #                 return True
+        for ctr in range(self.num_bus):
+            # Network Violations: node(x) = 0/1 then all branch(x,y) = 0/1
+            if action["bus_status"][ctr] == 0:
+                for ctr2 in range(self.num_branch):
+                    if ctr in [self.from_buses[ctr2], self.to_buses[ctr2]]:
+                        if action["branch_status"][ctr2] == 1:
+                            action["branch_status"][ctr2] = 0
+                            print("================ reset branch status based on branch: ", action["branch_status"][ctr2])
+                            # logger.warn("Network Violation betweem bus {} and  branch ({}, {})".format(
+                            #     ctr, self.from_buses[ctr2], self.to_buses[ctr2]))
+                            # return True
         
         injections = {int(key): 0 for key in action["generator_selector"]}
         for gen_pair in zip(action["generator_selector"], action["generator_injection"]):
@@ -463,6 +468,11 @@ class PowerOperations(object):
         return self.previous_fire_state["node"] != fire_state["node"] or \
             self.previous_fire_state["branch"] != fire_state["branch"]
 
+    def _any_change_in_power_generation(self, ):
+        res = (self.previous_power_generations[0] == self.previous_power_generations[1]).all()
+        # print("res: ", res, "; power_gen: ", self.previous_power_generations)
+        return not res
+
     def _remove_temp_files(self):
         temp_files = glob.glob(os.path.join(self.gams_dir, '_gams_py_*'))
         logger.debug("Deleting {} files from directory {}".format(len(temp_files), self.gams_dir))
@@ -500,27 +510,31 @@ class PowerOperations(object):
         self.live_equipment_removal_penalty = 0
         action["generator_injection"] = np.around(action["generator_injection"], 4)
 
-        if self._any_change_action(action) or self._any_change_fire_state(fire_state):
-            has_violations  = self._check_violations(action)
-            if not has_violations:
-                self.has_converged = True
-                self._check_protection_system_actions(fire_state)   # Identify protection system operation counts
-                self._check_live_line_removal_actions(action["branch_status"], action["bus_status"])  # Identify live line removal operation counts
+        # print("power_sim: episode:", action["episode"], "step: ", action["step_count"], "; any_change_inf_fire_state: ", self._any_change_fire_state(fire_state), "; any_change_in_power_generation: ", self._any_change_in_power_generation())
+        # if self._any_change_action(action) or self._any_change_fire_state(fire_state) or self._any_change_in_power_generation():
 
-                # Pg_injections, Pg_upper, Pg_lower, P_load, P_load_upper
-                # Branch_status, P_line_flow_upper, Ramp_upper has been updated
-                self.previous_action = deepcopy(action)
-                self.previous_fire_state = deepcopy(fire_state)
+        has_violations  = self._check_violations(action)
+        if not has_violations:
+            self.has_converged = True
+            self._check_protection_system_actions(fire_state)   # Identify protection system operation counts
+            self._check_live_line_removal_actions(action["branch_status"], action["bus_status"])  # Identify live line removal operation counts
 
-                self._solve_runtime_model()
-            else:
-                self.has_converged = False
-                logger.warn("Got non-convergence in the simulation checking")
-                print("Got non-convergence in the simulation checking")
+            self.previous_action = deepcopy(action)
+            self.previous_fire_state = deepcopy(fire_state)
+
+            self._solve_runtime_model()
+
+            # self.previous_power_generations.pop(0)
+            # self.previous_power_generations.append(deepcopy(self._shared_ds.pg_injection))
+            # print("power_generation: ", self._shared_ds.pg_injection)
         else:
-            logger.info("Skipping this iteration as no change detected")
-            # print("Skipping this iteration as no change detected")
-            pass
+            self.has_converged = False
+            logger.warn("Got non-convergence in the simulation checking")
+            print("Got non-convergence in the simulation checking")
+        # else:
+        #     logger.info("Skipping this iteration as no change detected")
+        #     # print("Skipping this iteration as no change detected")
+        #     pass
 
     def get_status(self):
         return not self.has_converged

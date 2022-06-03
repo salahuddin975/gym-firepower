@@ -185,6 +185,7 @@ class Grid(object):
             state = self.grid[row][col].step(newly_added_burning_cells)
             if state == CellState.BURNT:
                 burnt_cells.append(cell)
+                self._all_burnt_cells.append(cell)
 
         for burnt_cell in burnt_cells:
             self.state[burnt_cell] = CellState.BURNT
@@ -209,13 +210,14 @@ class Grid(object):
 
         self.newly_added_burning_cells = np.array([cell for cell in self.sources], dtype=int)
         self._burning_cells = self.sources
+        self._all_burnt_cells = []
         # print("reset: burning_cells:", len(self._burning_cells))
 
         self.fire_distance = {"nodes": {}, "branches": {}}
         self._calculate_distance_from_fire()
 
     def get_burning_cells(self):
-        return self._burning_cells
+        return self._burning_cells, self._all_burnt_cells
 
     def _get_new_sources(self):
         if self.random_source:
@@ -498,7 +500,7 @@ if __name__ == "__main__":
             state = fire_spread.get_reduced_state()
             distance = fire_spread.get_distance_from_fire()
 
-            burning_cells = fire_spread.get_burning_cells()
+            burning_cells, all_burnt_cells = fire_spread.get_burning_cells()
             image = visualizer.draw_map(i, burning_cells)
             image.save(f"map_{j}_{i}.png")
             images.append(image)

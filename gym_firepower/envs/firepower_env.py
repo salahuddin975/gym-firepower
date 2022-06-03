@@ -77,7 +77,8 @@ class FirePowerEnv(gym.Env):
         status = self._get_status()
         reward = self._get_reward()
         observation = self._get_state()
-        return observation, reward, status, {}
+        burnt_cells = self.fire_spread_model.get_burning_cells()
+        return observation, reward, status, burnt_cells
 
     def reset(self):
         self.fire_spread_model.reset()

@@ -217,7 +217,7 @@ class Grid(object):
         self._calculate_distance_from_fire()
 
     def get_burning_cells(self):
-        return self._burning_cells, self._all_burnt_cells
+        return (self._burning_cells, self._all_burnt_cells)
 
     def _get_new_sources(self):
         if self.random_source:

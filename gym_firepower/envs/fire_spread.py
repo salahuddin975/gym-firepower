@@ -10,10 +10,12 @@ from numpy import arccos, array, dot, pi, cross
 from numpy.linalg import det, norm
 from gym import logger
 import math
+from enum import Enum
 from gym.utils import seeding
 from gym_firepower.envs.fire_spread_log_writer import FireSpreadInfoWriter
 # from fire_spread_log_writer import FireSpreadInfoWriter
-from enum import Enum
+from gym_firepower.envs.fire_propagation_visualizer import Visualizer
+# from fire_propagation_visualizer import Visualizer
 
 
 DEFAULT_FUEL_TYPE = -3
@@ -211,7 +213,10 @@ class Grid(object):
 
         self.fire_distance = {"nodes": {}, "branches": {}}
         self._calculate_distance_from_fire()
-    
+
+    def get_burning_cells(self):
+        return self._burning_cells
+
     def _get_new_sources(self):
         if self.random_source:
             self.fire_source = np.full((self.rows, self.cols), False)
@@ -472,12 +477,17 @@ class FireSpread(object):
     def get_distance_from_fire(self):
         return self.grid.get_distance_from_fire()
 
+    def get_burning_cells(self):
+        return self.grid.get_burning_cells()
+
 
 if __name__ == "__main__":
     conf_file = "./../../../FirePower-agent-private/configurations/configuration.json"
     seed = 50
     fire_spread = FireSpread(conf_file, 1, seed, True)
+    visualizer = Visualizer(conf_file)
 
+    images = []
     start_time = datetime.now()
     num_of_episode = 5
     num_of_steps = 300
@@ -487,12 +497,16 @@ if __name__ == "__main__":
             fire_spread.step()
             state = fire_spread.get_reduced_state()
             distance = fire_spread.get_distance_from_fire()
-            print("episode:", j, ", step:", i, "distance:", distance["branches"])
+
+            burning_cells = fire_spread.get_burning_cells()
+            image = visualizer.draw_map(i, burning_cells)
+            image.save(f"map_{j}_{i}.png")
+            images.append(image)
 
             # print("state:", fire_spread.get_state())
             # print("reduced_state:", state)
             # print("distance:", distance)
 
-
+    images[0].save("map.gif", save_all=True, append_images=images[1:], loop=True)
     computation_time = (datetime.now() - start_time).total_seconds()
     print("total_computation_time:", computation_time)

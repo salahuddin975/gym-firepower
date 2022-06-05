@@ -76,6 +76,8 @@ class FirePowerEnv(gym.Env):
         self._take_action(action)
         status = self._get_status()
         reward = self._get_reward()
+
+        self.fire_spread_model.step()
         observation = self._get_state()
         burnt_cells = self.fire_spread_model.get_burning_cells()
         return observation, reward, status, burnt_cells
@@ -100,7 +102,6 @@ class FirePowerEnv(gym.Env):
         pass
 
     def _take_action(self, action):
-        self.fire_spread_model.step()
         fire_state = self.fire_spread_model.get_reduced_state()
         self.power_sys_model.step(action, fire_state)
 
@@ -117,17 +118,25 @@ class FirePowerEnv(gym.Env):
 
     def _get_state(self):
         power_state = self.power_sys_model.get_state()
-        fire_state = self.fire_spread_model.get_state()
-        power_state.update({'fire_state': fire_state})
+        fire_state = self.fire_spread_model.get_reduced_state()
 
+        bus_status = np.zeros(24)
+        branch_status = np.zeros(34)
         fire_distance_list = []
+
         fire_distance = self.fire_spread_model.get_distance_from_fire()
-        for bus in self.ppc["bus"][:, BUS_I]:
+        for i, bus in enumerate(self.ppc["bus"][:, BUS_I]):
+            bus_status[i] = fire_state["node"][i]
             fire_distance_list.append(fire_distance["nodes"][int(bus)])
-        for branch in self.ppc["branch"]:
+
+        for i, branch in enumerate(self.ppc["branch"]):
             from_bus = int(branch[F_BUS])
             to_bus = int(branch[T_BUS])
+            branch_status[i] = fire_state["branch"][(from_bus, to_bus)]
             fire_distance_list.append(fire_distance["branches"][(from_bus, to_bus)])
+
+        power_state.update({'bus_status': bus_status})
+        power_state.update({'branch_status': branch_status})
         power_state.update({'fire_distance': fire_distance_list})
 
         return power_state

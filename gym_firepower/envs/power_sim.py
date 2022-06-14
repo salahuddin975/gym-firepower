@@ -39,6 +39,7 @@ class SharedDataSet:
 
         self.p_load_initial = ppc_int["bus"][:, PD] / ppc_int["baseMVA"]           # List of load demand on each bus
         self.p_load = deepcopy(self.p_load_initial)
+        self.pload_served = deepcopy(self.p_load_initial)
 
         self.pg_upper = np.zeros(num_bus, np.float64)           # This list contains non generator buses with upper limit set to 0
         self.pg_lower = np.zeros(num_bus, np.float64)
@@ -197,6 +198,7 @@ class GamsInterface:
             # self.load_loss = self.problem.out_db["Load_loss"].first_record().value
             # self.p_load_solved_distribution[0] = np.around(self.problem.out_db["p_solved_c"].first_record().value, 3)
             # self.p_load_solved_distribution[1] =  np.around(self.problem.out_db["p_solved_nc"].first_record().value, 3)
+            ds.pload_served = [self.problem.out_db["PLoad_served"]["{}".format(i)].get_level() for i in range(self.num_bus)]
             p_load_solved =  round(self.problem.out_db["p_solved"].first_record().value, 3)
             ds.gen_status = [self.problem.out_db["OutGen_val"]["{}".format(i)].get_level() for i in range(self.num_bus)]
             return (True, p_load_solved)
@@ -381,6 +383,7 @@ class PowerOperations(object):
                     self._shared_ds.pg_upper[node] = 0
                     self._shared_ds.ramp_upper[node] = 0
                     self._shared_ds.p_load[node] = 0
+                    self._shared_ds.pload_served[node] = 0
                     self._shared_ds.bus_status[node] = 0
 
         self.protection_action_count += protection_action_count
@@ -430,6 +433,7 @@ class PowerOperations(object):
                     self._shared_ds.pg_upper[ctr] = 0
                     self._shared_ds.ramp_upper[ctr] = 0
                     self._shared_ds.p_load[ctr] = 0
+                    self._shared_ds.pload_served[ctr] = 0
                     # self.p_load_upper[ctr] = 0
                     self._shared_ds.bus_status[ctr] = 0
 
@@ -492,6 +496,7 @@ class PowerOperations(object):
         state = {}
         state["generator_injection"] = self._shared_ds.pg_injection
         state["load_demand"] = self._shared_ds.p_load
+        state["pload_served"] = self._shared_ds.pload_served
         state["branch_status"] = np.array([self._shared_ds.branch_status[self.from_buses[ctr]][self.to_buses[ctr]] for ctr in range(self.num_branch)])
         state["theta"] = self._shared_ds.theta
         state["bus_status"] = self._shared_ds.bus_status

@@ -279,6 +279,7 @@ class PowerOperations(object):
     def _solve_runtime_model(self):
         self._gams_interface.setup_problem(run_time_model_v2, self._shared_ds, self.episode_no, self.step_no)
         self.has_converged, self.p_load_solved = self._gams_interface.extract_results(self._shared_ds)
+        assert self.has_converged, "Run time Model did not converge"
 
     def _check_violations(self, action):
         # assert action["generator_injection"].shape[0] == self.num_tunable_generator, "generator action dimenion miss-match "

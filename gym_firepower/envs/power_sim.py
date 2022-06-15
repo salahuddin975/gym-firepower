@@ -495,8 +495,9 @@ class PowerOperations(object):
         # print("Method PowerOperations.{} Not Implemented Yet".format("get_state"))
         state = {}
         state["generator_injection"] = self._shared_ds.pg_injection
-        state["load_demand"] = self._shared_ds.p_load
-        state["pload_served"] = self._shared_ds.pload_served
+        # state["load_demand"] = self._shared_ds.p_load
+        state["load_demand"] = self._shared_ds.pload_served      # servable load demand
+        # state["pload_served"] = self._shared_ds.pload_served
         state["branch_status"] = np.array([self._shared_ds.branch_status[self.from_buses[ctr]][self.to_buses[ctr]] for ctr in range(self.num_branch)])
         state["theta"] = self._shared_ds.theta
         state["bus_status"] = self._shared_ds.bus_status

@@ -135,11 +135,11 @@ class GamsInterface:
             self.i.add_record(str(ctr_bus1))
             self.PGLbarT.add_record(str(ctr_bus1)).value = ds.pg_lower[ctr_bus1]
             self.PGUbarT.add_record(str(ctr_bus1)).value = ds.pg_upper[ctr_bus1]
+            self.PGBegin.add_record(str(ctr_bus1)).value = ds.pg_injection[ctr_bus1]
             self.ThetaLbar.add_record(str(ctr_bus1)).value = ds.theta_lower[ctr_bus1]
             self.ThetaUbar.add_record(str(ctr_bus1)).value = ds.theta_upper[ctr_bus1]
             self.PLoad.add_record(str(ctr_bus1)).value = ds.p_load[ctr_bus1]
             self.Rampbar.add_record(str(ctr_bus1)).value = ds.ramp_upper[ctr_bus1]
-            self.PGBegin.add_record(str(ctr_bus1)).value = ds.pg_injection[ctr_bus1]
             for ctr_bus2 in range(self.num_bus):
                 self.B_.add_record((str(ctr_bus1), str(ctr_bus2))).value = float(self.B[ctr_bus1][ctr_bus2])
                 self.PLbar.add_record((str(ctr_bus1), str(ctr_bus2))).value = float(ds.power_flow_line_upper[ctr_bus1][ctr_bus2])
@@ -264,6 +264,9 @@ class PowerOperations(object):
         self.live_equipment_removal_count = 0
         self.live_equipment_removal_penalty = 0
 
+        self._rl_ds = deepcopy(self._shared_ds)
+        self._myopic_ds = deepcopy(self._shared_ds)
+
     def _solve_initial_model(self):        
         self._gams_interface.setup_problem(initial_model_v2, self._shared_ds, self.episode_no, self.step_no)
         self.has_converged, self.p_load_solved = self._gams_interface.extract_results(self._shared_ds)
@@ -286,22 +289,23 @@ class PowerOperations(object):
         # assert action["branch_status"].shape[0] == self.num_branch, "branch action dimenion miss-match "
         # assert action["bus_status"].shape[0] == self.num_bus, "bus action dimenion miss-match "
         # assert action["generator_selector"].shape[0] == self.num_tunable_generator, "generator selector dimenion miss-match "
-        #
-        for ctr in range(self.num_bus):
-            # Network Violations: node(x) = 0/1 then all branch(x,y) = 0/1
-            if action["bus_status"][ctr] == 0:
-                for ctr2 in range(self.num_branch):
-                    if ctr in [self.from_buses[ctr2], self.to_buses[ctr2]]:
-                        if action["branch_status"][ctr2] == 1:
-                            action["branch_status"][ctr2] = 0
-                            print("================ reset branch status based on branch: ", action["branch_status"][ctr2])
-                            # logger.warn("Network Violation betweem bus {} and  branch ({}, {})".format(
-                            #     ctr, self.from_buses[ctr2], self.to_buses[ctr2]))
-                            # return True
+
+        # for ctr in range(self.num_bus):
+        #     # Network Violations: node(x) = 0/1 then all branch(x,y) = 0/1
+        #     if action["bus_status"][ctr] == 0:
+        #         for ctr2 in range(self.num_branch):
+        #             if ctr in [self.from_buses[ctr2], self.to_buses[ctr2]]:
+        #                 if action["branch_status"][ctr2] == 1:
+        #                     action["branch_status"][ctr2] = 0
+        #                     print("================ reset branch status based on branch: ", action["branch_status"][ctr2])
+        #                     # logger.warn("Network Violation betweem bus {} and  branch ({}, {})".format(
+        #                     #     ctr, self.from_buses[ctr2], self.to_buses[ctr2]))
+        #                     # return True
         
         injections = {int(key): 0 for key in action["generator_selector"]}
         for gen_pair in zip(action["generator_selector"], action["generator_injection"]):
             injections[gen_pair[0]] += round(gen_pair[1],4)
+
         # for gen_bus in injections:
         #     if gen_bus in self.ppc_int["gen"][:, GEN_BUS] and self.ds.bus_status[gen_bus] != 0:
         #         if abs(injections[gen_bus]) - self.ramp_upper_initial[gen_bus]  > 0.0001:
@@ -403,11 +407,8 @@ class PowerOperations(object):
                     if self._shared_ds.power_flow_line[f_bus][t_bus] > 0.001 or \
                         self._shared_ds.power_flow_line[t_bus][f_bus] > 0.001 :
                         logger.warn("Removing a live line ({}, {})".format(f_bus, t_bus))
-                        # print("Removing a live line ({}, {})".format(f_bus, t_bus))
                         logger.warn("The power flowing through the line ({}, {}) is {}".format(
                             f_bus, t_bus, self._shared_ds.power_flow_line[f_bus][t_bus]))
-                        # print("The power flowing through the line ({}, {}) is {}".format(
-                            # f_bus, t_bus, self.ds.power_flow_line[f_bus][t_bus]))
                         live_equipment_removal_count += 1
                         self.live_equipment_removal_penalty += abs(
                             self._shared_ds.power_flow_line[f_bus][t_bus]) * self.ppc_int["baseMVA"]
@@ -510,6 +511,12 @@ class PowerOperations(object):
     def step(self, action, fire_state):
         # print("power_sim: episode:", action["episode"], "step: ", action["step_count"], "; fire_state_node: ", fire_state["node"])
         # print("power_sim: episode:", action["episode"], "step: ", action["step_count"], "; fire_state_branch: ", fire_state["branch"])
+
+        if action["rl_action"]:
+            self._shared_ds = self._rl_ds
+        else:
+            self._shared_ds = self._myopic_ds
+
         self.episode_no = action["episode"]
         self.step_no = action["step_count"]
 
@@ -524,7 +531,7 @@ class PowerOperations(object):
         if not has_violations:
             self.has_converged = True
             self._check_protection_system_actions(fire_state)   # Identify protection system operation counts
-            self._check_live_line_removal_actions(action["branch_status"], action["bus_status"])  # Identify live line removal operation counts
+            # self._check_live_line_removal_actions(action["branch_status"], action["bus_status"])  # Identify live line removal operation counts
 
             self.previous_action = deepcopy(action)
             self.previous_fire_state = deepcopy(fire_state)
@@ -538,10 +545,10 @@ class PowerOperations(object):
             self.has_converged = False
             logger.warn("Got non-convergence in the simulation checking")
             print("Got non-convergence in the simulation checking")
-        # else:
-        #     logger.info("Skipping this iteration as no change detected")
-        #     # print("Skipping this iteration as no change detected")
-        #     pass
+
+        if action["rl_action"]:
+            self._myopic_ds = deepcopy(self._shared_ds)
+            self._rl_ds = deepcopy(self._shared_ds)
 
     def get_status(self):
         return not self.has_converged

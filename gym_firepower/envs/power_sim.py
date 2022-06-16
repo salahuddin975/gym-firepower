@@ -264,8 +264,9 @@ class PowerOperations(object):
         self.live_equipment_removal_count = 0
         self.live_equipment_removal_penalty = 0
 
-        self._rl_ds = deepcopy(self._shared_ds)
         self._myopic_ds = deepcopy(self._shared_ds)
+        self._target_myopic_ds = deepcopy(self._shared_ds)
+        self._rl_ds = deepcopy(self._shared_ds)
 
     def _solve_initial_model(self):        
         self._gams_interface.setup_problem(initial_model_v2, self._shared_ds, self.episode_no, self.step_no)
@@ -512,9 +513,11 @@ class PowerOperations(object):
         # print("power_sim: episode:", action["episode"], "step: ", action["step_count"], "; fire_state_node: ", fire_state["node"])
         # print("power_sim: episode:", action["episode"], "step: ", action["step_count"], "; fire_state_branch: ", fire_state["branch"])
 
-        if action["rl_action"]:
+        if action["action_type"] == "rl":
             self._shared_ds = self._rl_ds
-        else:
+        elif action["action_type"] == "target_myopic":
+            self._shared_ds = self._target_myopic_ds
+        elif action["action_type"] == "myopic":
             self._shared_ds = self._myopic_ds
 
         self.episode_no = action["episode"]
@@ -546,9 +549,11 @@ class PowerOperations(object):
             logger.warn("Got non-convergence in the simulation checking")
             print("Got non-convergence in the simulation checking")
 
-        if action["rl_action"]:
-            self._myopic_ds = deepcopy(self._shared_ds)
+        if action["action_type"] == "rl":
+            self._target_myopic_ds = deepcopy(self._shared_ds)
             self._rl_ds = deepcopy(self._shared_ds)
+        elif action["action_type"] == "myopic":
+            self._myopic_ds = deepcopy(self._shared_ds)
 
     def get_status(self):
         return not self.has_converged

@@ -255,10 +255,10 @@ class PowerOperations(object):
         self._shared_ds = SharedDataSet(self.ppc_int, self.initial_load_flow, self.num_bus, self.num_branch, self.from_buses, self.to_buses)
         self._solve_initial_model()
         
-        self.previous_action = deepcopy(self.initial_action)
-        self.previous_fire_state = deepcopy(self.initial_fire_state)
-        self.previous_power_generations = [np.array([0] * 24)]
-        self.previous_power_generations. append(deepcopy(self._shared_ds.pg_injection))
+        # self.previous_action = deepcopy(self.initial_action)
+        # self.previous_fire_state = deepcopy(self.initial_fire_state)
+        # self.previous_power_generations = [np.array([0] * 24)]
+        # self.previous_power_generations. append(deepcopy(self._shared_ds.pg_injection))
 
         self.protection_action_count = 0
         self.live_equipment_removal_count = 0
@@ -368,7 +368,7 @@ class PowerOperations(object):
         protection_action_count = 0
 
         for branch in fire_state["branch"]:
-            if fire_state["branch"][branch] != self.previous_fire_state["branch"][branch]:
+            # if fire_state["branch"][branch] != self.previous_fire_state["branch"][branch]:
                 if fire_state["branch"][branch] == 0:
                     if self._shared_ds.branch_status[branch[0]][branch[1]] == 1:
                         protection_action_count += 1
@@ -379,7 +379,7 @@ class PowerOperations(object):
                     self._shared_ds.power_flow_line_upper[branch[1]][branch[0]] = 0
         
         for node in fire_state["node"]:
-            if fire_state["node"][node] != self.previous_fire_state["node"][node]:
+            # if fire_state["node"][node] != self.previous_fire_state["node"][node]:
                 if fire_state["node"][node] == 0:
                     if self._shared_ds.pg_injection[node] > 0.001:
                         protection_action_count += 1
@@ -394,91 +394,91 @@ class PowerOperations(object):
 
         self.protection_action_count += protection_action_count
 
-    def _check_live_line_removal_actions(self, branch_actions, node_actions):
-        live_equipment_removal_count = 0
-        for ctr in range(self.num_branch):
-            # if self.previous_action["branch_status"][ctr] != branch_actions[ctr]:
-            assert self._shared_ds.branch_status[self.from_buses[ctr]][self.to_buses[ctr]] == \
-                   self._shared_ds.branch_status[self.to_buses[ctr]][self.from_buses[ctr]], \
-                "Branch Status symmetry has been lost"
-            if self._shared_ds.branch_status[self.from_buses[ctr]][self.to_buses[ctr]] != branch_actions[ctr]:
-                f_bus = self.from_buses[ctr]
-                t_bus = self.to_buses[ctr]
-                if branch_actions[ctr] == 0:
-                    if self._shared_ds.power_flow_line[f_bus][t_bus] > 0.001 or \
-                        self._shared_ds.power_flow_line[t_bus][f_bus] > 0.001 :
-                        logger.warn("Removing a live line ({}, {})".format(f_bus, t_bus))
-                        logger.warn("The power flowing through the line ({}, {}) is {}".format(
-                            f_bus, t_bus, self._shared_ds.power_flow_line[f_bus][t_bus]))
-                        live_equipment_removal_count += 1
-                        self.live_equipment_removal_penalty += abs(
-                            self._shared_ds.power_flow_line[f_bus][t_bus]) * self.ppc_int["baseMVA"]
-                    self._shared_ds.branch_status[f_bus][t_bus] = 0
-                    self._shared_ds.branch_status[t_bus][f_bus] = 0
-                    self._shared_ds.power_flow_line_upper[f_bus][t_bus] = 0
-                    self._shared_ds.power_flow_line_upper[t_bus][f_bus] = 0
-        for ctr in range(self.num_bus):
-            # if self.previous_action["bus_status"][ctr] != node_actions[ctr]:
-            if self._shared_ds.bus_status[ctr] != node_actions[ctr]:
-                if node_actions[ctr] == 0:
-                    if self._shared_ds.pg_injection[ctr] > 0.001:
-                        logger.warn("The power output of the generator at bus {} is {}".format(
-                            ctr, self._shared_ds.pg_injection[ctr]))
-                        # print("The power output of the generator at bus {} is {}".format(
-                            # ctr, self.ds.pg_injection[ctr]))
-                        logger.warn("Removing a live generator at bus {}".format(ctr))
-                        # print("Removing a live generator at bus {}".format(ctr))
-                        live_equipment_removal_count += 1
-                        gen_bus = int(np.where(self.gen_buses == ctr)[0][0])
-                        self.live_equipment_removal_penalty += abs((self._shared_ds.pg_injection[ctr] * self.ppc_int["baseMVA"]) - self.ppc_int["gen"][gen_bus, PMIN])
-                    self._shared_ds.pg_injection[ctr] = 0
-                    self._shared_ds.pg_lower[ctr] = 0
-                    self._shared_ds.pg_upper[ctr] = 0
-                    self._shared_ds.ramp_upper[ctr] = 0
-                    self._shared_ds.p_load[ctr] = 0
-                    self._shared_ds.pload_served[ctr] = 0
-                    # self.p_load_upper[ctr] = 0
-                    self._shared_ds.bus_status[ctr] = 0
+    # def _check_live_line_removal_actions(self, branch_actions, node_actions):
+    #     live_equipment_removal_count = 0
+    #     for ctr in range(self.num_branch):
+    #         # if self.previous_action["branch_status"][ctr] != branch_actions[ctr]:
+    #         assert self._shared_ds.branch_status[self.from_buses[ctr]][self.to_buses[ctr]] == \
+    #                self._shared_ds.branch_status[self.to_buses[ctr]][self.from_buses[ctr]], \
+    #             "Branch Status symmetry has been lost"
+    #         if self._shared_ds.branch_status[self.from_buses[ctr]][self.to_buses[ctr]] != branch_actions[ctr]:
+    #             f_bus = self.from_buses[ctr]
+    #             t_bus = self.to_buses[ctr]
+    #             if branch_actions[ctr] == 0:
+    #                 if self._shared_ds.power_flow_line[f_bus][t_bus] > 0.001 or \
+    #                     self._shared_ds.power_flow_line[t_bus][f_bus] > 0.001 :
+    #                     logger.warn("Removing a live line ({}, {})".format(f_bus, t_bus))
+    #                     logger.warn("The power flowing through the line ({}, {}) is {}".format(
+    #                         f_bus, t_bus, self._shared_ds.power_flow_line[f_bus][t_bus]))
+    #                     live_equipment_removal_count += 1
+    #                     self.live_equipment_removal_penalty += abs(
+    #                         self._shared_ds.power_flow_line[f_bus][t_bus]) * self.ppc_int["baseMVA"]
+    #                 self._shared_ds.branch_status[f_bus][t_bus] = 0
+    #                 self._shared_ds.branch_status[t_bus][f_bus] = 0
+    #                 self._shared_ds.power_flow_line_upper[f_bus][t_bus] = 0
+    #                 self._shared_ds.power_flow_line_upper[t_bus][f_bus] = 0
+    #     for ctr in range(self.num_bus):
+    #         # if self.previous_action["bus_status"][ctr] != node_actions[ctr]:
+    #         if self._shared_ds.bus_status[ctr] != node_actions[ctr]:
+    #             if node_actions[ctr] == 0:
+    #                 if self._shared_ds.pg_injection[ctr] > 0.001:
+    #                     logger.warn("The power output of the generator at bus {} is {}".format(
+    #                         ctr, self._shared_ds.pg_injection[ctr]))
+    #                     # print("The power output of the generator at bus {} is {}".format(
+    #                         # ctr, self.ds.pg_injection[ctr]))
+    #                     logger.warn("Removing a live generator at bus {}".format(ctr))
+    #                     # print("Removing a live generator at bus {}".format(ctr))
+    #                     live_equipment_removal_count += 1
+    #                     gen_bus = int(np.where(self.gen_buses == ctr)[0][0])
+    #                     self.live_equipment_removal_penalty += abs((self._shared_ds.pg_injection[ctr] * self.ppc_int["baseMVA"]) - self.ppc_int["gen"][gen_bus, PMIN])
+    #                 self._shared_ds.pg_injection[ctr] = 0
+    #                 self._shared_ds.pg_lower[ctr] = 0
+    #                 self._shared_ds.pg_upper[ctr] = 0
+    #                 self._shared_ds.ramp_upper[ctr] = 0
+    #                 self._shared_ds.p_load[ctr] = 0
+    #                 self._shared_ds.pload_served[ctr] = 0
+    #                 # self.p_load_upper[ctr] = 0
+    #                 self._shared_ds.bus_status[ctr] = 0
+    #
+    #     self.live_equipment_removal_count += live_equipment_removal_count
 
-        self.live_equipment_removal_count += live_equipment_removal_count
-
-    def _any_change_action(self, action):
-        injections = {int(key): 0 for key in action["generator_selector"]}
-        for gen_pair in zip(action["generator_selector"], action["generator_injection"]):
-            injections[gen_pair[0]] += gen_pair[1]
-
-        previous_injections = {int(key): 0 for key in self.previous_action["generator_selector"]}
-        for gen_pair in zip(self.previous_action["generator_selector"], self.previous_action["generator_injection"]):
-            previous_injections[gen_pair[0]] += gen_pair[1]
-
-        if not np.all(action["branch_status"] == self.previous_action["branch_status"]):
-            logger.info("Branch status in the current action is different")
-            return True
-        if not np.all(action["bus_status"] == self.previous_action["bus_status"]):
-            logger.info("Bus status in the current action is different")
-            return True
-
-        if not injections == previous_injections:
-            logger.info("Injections in the current action are different")
-            return True
-
-        for gen in injections:
-            if gen in self.ppc_int["gen"][:, GEN_BUS]:
-                if injections[gen] > 0.0001 or injections[gen] < -0.0001:
-                    logger.info("There exists atleast one non zero injection in current action")
-                    return True
-        
-        logger.info("Current action will not cause any change")
-        return False
+    # def _any_change_action(self, action):
+    #     injections = {int(key): 0 for key in action["generator_selector"]}
+    #     for gen_pair in zip(action["generator_selector"], action["generator_injection"]):
+    #         injections[gen_pair[0]] += gen_pair[1]
+    #
+    #     previous_injections = {int(key): 0 for key in self.previous_action["generator_selector"]}
+    #     for gen_pair in zip(self.previous_action["generator_selector"], self.previous_action["generator_injection"]):
+    #         previous_injections[gen_pair[0]] += gen_pair[1]
+    #
+    #     if not np.all(action["branch_status"] == self.previous_action["branch_status"]):
+    #         logger.info("Branch status in the current action is different")
+    #         return True
+    #     if not np.all(action["bus_status"] == self.previous_action["bus_status"]):
+    #         logger.info("Bus status in the current action is different")
+    #         return True
+    #
+    #     if not injections == previous_injections:
+    #         logger.info("Injections in the current action are different")
+    #         return True
+    #
+    #     for gen in injections:
+    #         if gen in self.ppc_int["gen"][:, GEN_BUS]:
+    #             if injections[gen] > 0.0001 or injections[gen] < -0.0001:
+    #                 logger.info("There exists atleast one non zero injection in current action")
+    #                 return True
+    #
+    #     logger.info("Current action will not cause any change")
+    #     return False
     
-    def _any_change_fire_state(self, fire_state):
-        return self.previous_fire_state["node"] != fire_state["node"] or \
-            self.previous_fire_state["branch"] != fire_state["branch"]
+    # def _any_change_fire_state(self, fire_state):
+    #     return self.previous_fire_state["node"] != fire_state["node"] or \
+    #         self.previous_fire_state["branch"] != fire_state["branch"]
 
-    def _any_change_in_power_generation(self, ):
-        res = (self.previous_power_generations[0] == self.previous_power_generations[1]).all()
-        # print("res: ", res, "; power_gen: ", self.previous_power_generations)
-        return not res
+    # def _any_change_in_power_generation(self, ):
+    #     res = (self.previous_power_generations[0] == self.previous_power_generations[1]).all()
+    #     # print("res: ", res, "; power_gen: ", self.previous_power_generations)
+    #     return not res
 
     def _remove_temp_files(self):
         temp_files = glob.glob(os.path.join(self.gams_dir, '_gams_py_*'))
@@ -536,8 +536,8 @@ class PowerOperations(object):
             self._check_protection_system_actions(fire_state)   # Identify protection system operation counts
             # self._check_live_line_removal_actions(action["branch_status"], action["bus_status"])  # Identify live line removal operation counts
 
-            self.previous_action = deepcopy(action)
-            self.previous_fire_state = deepcopy(fire_state)
+            # self.previous_action = deepcopy(action)
+            # self.previous_fire_state = deepcopy(fire_state)
 
             self._solve_runtime_model()
 

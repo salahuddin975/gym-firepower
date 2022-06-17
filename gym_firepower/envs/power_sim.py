@@ -509,16 +509,26 @@ class PowerOperations(object):
         # print("power_sim: episode:", self.episode_no, "; step:", self.step_no, "; generation_output:", np.sum(state["generator_injection"]), "; load_demand:", np.sum(state["load_demand"]))
         return deepcopy(state)
 
+    def _set_generator_status_based_on_target_myopic(self):
+        for i in range(len(self._target_myopic_ds.gen_status)):
+            if self._target_myopic_ds.gen_status[i] == 0:
+                self._shared_ds.gen_status[i] = 0
+                self._shared_ds.pg_injection[i] = 0
+                self._shared_ds.pg_lower[i] = 0
+                self._shared_ds.pg_upper[i] = 0
+                self._shared_ds.ramp_upper[i] = 0
+
     def step(self, action, fire_state):
         # print("power_sim: episode:", action["episode"], "step: ", action["step_count"], "; fire_state_node: ", fire_state["node"])
         # print("power_sim: episode:", action["episode"], "step: ", action["step_count"], "; fire_state_branch: ", fire_state["branch"])
 
-        if action["action_type"] == "rl":
-            self._shared_ds = self._rl_ds
+        if action["action_type"] == "myopic":
+            self._shared_ds = self._myopic_ds
         elif action["action_type"] == "target_myopic":
             self._shared_ds = self._target_myopic_ds
-        elif action["action_type"] == "myopic":
-            self._shared_ds = self._myopic_ds
+        elif action["action_type"] == "rl":
+            self._shared_ds = self._rl_ds
+            self._set_generator_status_based_on_target_myopic()
 
         self.episode_no = action["episode"]
         self.step_no = action["step_count"]

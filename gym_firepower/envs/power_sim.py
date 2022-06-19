@@ -268,7 +268,9 @@ class PowerOperations(object):
         # self._target_myopic_ds = deepcopy(self._shared_ds)
         # self._rl_ds = deepcopy(self._shared_ds)
 
-    def _solve_initial_model(self):        
+    def _solve_initial_model(self):
+        self._agent_solved_power_generation = deepcopy(self._shared_ds.pg_injection)
+
         self._gams_interface.setup_problem(initial_model_v2, self._shared_ds, self.episode_no, self.step_no)
         self.has_converged, self.p_load_solved = self._gams_interface.extract_results(self._shared_ds)
 
@@ -281,6 +283,8 @@ class PowerOperations(object):
         self.pg_lower_initial = deepcopy(self._shared_ds.pg_lower)
 
     def _solve_runtime_model(self):
+        self._agent_solved_power_generation = deepcopy(self._shared_ds.pg_injection)
+
         self._gams_interface.setup_problem(run_time_model_v2, self._shared_ds, self.episode_no, self.step_no)
         self.has_converged, self.p_load_solved = self._gams_interface.extract_results(self._shared_ds)
         assert self.has_converged, "Run time Model did not converge"
@@ -501,7 +505,7 @@ class PowerOperations(object):
     def get_state(self):
         # print("Method PowerOperations.{} Not Implemented Yet".format("get_state"))
         state = {}
-        state["generator_injection"] = self._shared_ds.pg_injection
+        state["generator_injection"] = self._agent_solved_power_generation
         state["load_demand"] = self._shared_ds.p_load
         # state["load_demand"] = self._shared_ds.pload_served      # servable load demand
         state["branch_status"] = np.array([self._shared_ds.branch_status[self.from_buses[ctr]][self.to_buses[ctr]] for ctr in range(self.num_branch)])
@@ -572,8 +576,26 @@ class PowerOperations(object):
     def get_status(self):
         return not self.has_converged
 
-    def get_load_loss(self):
-        return round(sum(self._shared_ds.p_load_initial) - self.p_load_solved, 3)
+    def get_penalty(self):
+        load_loss = np.zeros(len(self._agent_solved_power_generation))
+        over_power_generation = np.zeros(len(self._agent_solved_power_generation))
+
+        output = self._agent_solved_power_generation - self._shared_ds.pg_injection
+        for val, i in enumerate(output):
+            if val < 0:
+                load_loss[i] = val
+            if val > 0:
+                over_power_generation[i] = val
+
+        total_load_loss = np.sum(load_loss)
+        total_over_power_generation = np.sum(over_power_generation)
+        total_penalty = total_load_loss + (-1 * total_over_power_generation)
+        print("total_load_loss: ", total_load_loss, ", total_over_power_generation: ", total_over_power_generation, ", total_penalty: ", total_penalty)
+
+        return total_penalty, total_load_loss
+
+    # def get_load_loss(self):
+    #     return round(sum(self._shared_ds.p_load_initial) - self.p_load_solved, 3)
     
     # def get_load_loss_weighted(self):
     #     # non critical load

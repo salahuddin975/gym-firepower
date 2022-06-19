@@ -5,7 +5,8 @@ from pypower.idx_bus import *
 from pypower.int2ext import *
 from pypower.ext2int import *
 import numpy as np
-from gym_firepower.envs.gams.models import initial_model_v2, run_time_model_v2
+from gym_firepower.envs.gams.models import initial_model_v2 as initial_model
+from gym_firepower.envs.gams.models import run_time_model_v2 as run_time_model
 from gams import *
 import sys
 import os
@@ -269,7 +270,7 @@ class PowerOperations(object):
         self._rl_ds = deepcopy(self._shared_ds)
 
     def _solve_initial_model(self):        
-        self._gams_interface.setup_problem(initial_model_v2, self._shared_ds, self.episode_no, self.step_no)
+        self._gams_interface.setup_problem(initial_model, self._shared_ds, self.episode_no, self.step_no)
         self.has_converged, self.p_load_solved = self._gams_interface.extract_results(self._shared_ds)
 
         assert self.has_converged, "Initial Model did not converge"
@@ -281,7 +282,7 @@ class PowerOperations(object):
         self.pg_lower_initial = deepcopy(self._shared_ds.pg_lower)
 
     def _solve_runtime_model(self):
-        self._gams_interface.setup_problem(run_time_model_v2, self._shared_ds, self.episode_no, self.step_no)
+        self._gams_interface.setup_problem(run_time_model, self._shared_ds, self.episode_no, self.step_no)
         self.has_converged, self.p_load_solved = self._gams_interface.extract_results(self._shared_ds)
         assert self.has_converged, "Run time Model did not converge"
 

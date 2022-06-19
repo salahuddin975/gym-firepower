@@ -355,8 +355,12 @@ class PowerOperations(object):
             if gen_bus in action["generator_selector"]:
                 # fixing PG_injections to the value provided by the agent
                 self._shared_ds.pg_injection[gen_bus] = self._shared_ds.pg_injection[gen_bus] + injections[gen_bus]
-                self._shared_ds.pg_lower[gen_bus] = self._shared_ds.pg_injection[gen_bus]
-                self._shared_ds.pg_upper[gen_bus] = self._shared_ds.pg_injection[gen_bus]
+                if self.train_environment:
+                    self._shared_ds.pg_lower[gen_bus] = self.pg_lower_initial[gen_bus]
+                    self._shared_ds.pg_upper[gen_bus] = self.pg_upper_initial[gen_bus]
+                else:
+                    self._shared_ds.pg_lower[gen_bus] = self._shared_ds.pg_injection[gen_bus]
+                    self._shared_ds.pg_upper[gen_bus] = self._shared_ds.pg_injection[gen_bus]
             else:
                 # for free generators to initial values(P_MAX, P_MIN)
                 self._shared_ds.pg_lower[gen_bus] = self.pg_lower_initial[gen_bus]
@@ -531,6 +535,7 @@ class PowerOperations(object):
 
         self.episode_no = action["episode"]
         self.step_no = action["step_count"]
+        self.train_environment = action["train_environment"]
 
         self.protection_action_count = 0
         self.live_equipment_removal_penalty = 0

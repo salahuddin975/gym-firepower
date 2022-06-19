@@ -590,7 +590,7 @@ class PowerOperations(object):
         total_load_loss = np.sum(load_loss)
         total_generation_rejection = np.sum(generation_rejection)
         total_penalty = total_load_loss + (-1 * total_generation_rejection)
-        print("total_load_loss: ", total_load_loss, ", total_generation_rejection: ", total_generation_rejection, ", total_penalty: ", total_penalty)
+        # print("total_load_loss: ", total_load_loss, ", total_generation_rejection: ", total_generation_rejection, ", total_penalty: ", total_penalty)
 
         return total_penalty, total_load_loss
 

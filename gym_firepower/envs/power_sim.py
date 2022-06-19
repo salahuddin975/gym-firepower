@@ -578,19 +578,19 @@ class PowerOperations(object):
 
     def get_penalty(self):
         load_loss = np.zeros(len(self._agent_solved_power_generation))
-        over_power_generation = np.zeros(len(self._agent_solved_power_generation))
+        generation_rejection = np.zeros(len(self._agent_solved_power_generation))
 
         output = self._agent_solved_power_generation - self._shared_ds.pg_injection
         for val, i in enumerate(output):
             if val < 0:
                 load_loss[i] = val
             if val > 0:
-                over_power_generation[i] = val
+                generation_rejection[i] = val
 
         total_load_loss = np.sum(load_loss)
-        total_over_power_generation = np.sum(over_power_generation)
-        total_penalty = total_load_loss + (-1 * total_over_power_generation)
-        print("total_load_loss: ", total_load_loss, ", total_over_power_generation: ", total_over_power_generation, ", total_penalty: ", total_penalty)
+        total_generation_rejection = np.sum(generation_rejection)
+        total_penalty = total_load_loss + (-1 * total_generation_rejection)
+        print("total_load_loss: ", total_load_loss, ", total_generation_rejection: ", total_generation_rejection, ", total_penalty: ", total_penalty)
 
         return total_penalty, total_load_loss
 

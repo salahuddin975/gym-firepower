@@ -358,11 +358,12 @@ class PowerOperations(object):
                 continue
             if gen_bus in action["generator_selector"]:
                 # fixing PG_injections to the value provided by the agent
-                self._shared_ds.pg_injection[gen_bus] = self._shared_ds.pg_injection[gen_bus] + injections[gen_bus]
                 if self.train_environment:
+                    self._shared_ds.pg_injection[gen_bus] = self._agent_solved_power_generation[gen_bus] + injections[gen_bus]
                     self._shared_ds.pg_lower[gen_bus] = self.pg_lower_initial[gen_bus]
                     self._shared_ds.pg_upper[gen_bus] = self.pg_upper_initial[gen_bus]
                 else:
+                    self._shared_ds.pg_injection[gen_bus] = self._shared_ds.pg_injection[gen_bus] + injections[gen_bus]
                     self._shared_ds.pg_lower[gen_bus] = self._shared_ds.pg_injection[gen_bus]
                     self._shared_ds.pg_upper[gen_bus] = self._shared_ds.pg_injection[gen_bus]
             else:

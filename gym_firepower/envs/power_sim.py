@@ -581,7 +581,7 @@ class PowerOperations(object):
         generation_rejection = np.zeros(len(self._agent_solved_power_generation))
 
         output = self._agent_solved_power_generation - self._shared_ds.pg_injection
-        for val, i in enumerate(output):
+        for i, val in enumerate(output):
             if val < 0:
                 load_loss[i] = val
             if val > 0:

@@ -163,30 +163,25 @@ class GamsInterface:
 
     def extract_results(self, ds):
         p_load_solved = 0.0
-        # self.p_load_solved_distribution = np.array([0,0], dtype=float)    # (critical load, non critical load)
+        model_converged = False
         model_status  = int(self.problem.out_db["ModStat"].first_record().value)
 
         if model_status not in [3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 18, 19]:
-            # self.has_converged = True
-            ds.theta = [self.problem.out_db["Theta"]["{}".format(i)].get_level() for i in range(self.num_bus)]
+            model_converged = True
+
+            p_load_solved = round(self.problem.out_db["p_solved"].first_record().value, 3)
+            ds.pload_served = [self.problem.out_db["PLoad_served"]["{}".format(i)].get_level() for i in range(self.num_bus)]
+
+            ds.gen_status = [self.problem.out_db["OutGen_val"]["{}".format(i)].get_level() for i in range(self.num_bus)]
             ds.pg_injection = np.around([self.problem.out_db["PGn"]["{}".format(i)].get_level() for i in range(self.num_bus)], 4)
+
+            ds.theta = [self.problem.out_db["Theta"]["{}".format(i)].get_level() for i in range(self.num_bus)]
             for i in range(self.num_branch):
-                from_bus = self.from_buses[i]
-                to_bus = self.to_buses[i]
+                from_bus, to_bus = self.from_buses[i], self.to_buses[i]
                 ds.power_flow_line[from_bus][to_bus] = self.problem.out_db["LineFlow"][(str(from_bus), str(to_bus))].get_level()
                 ds.power_flow_line[to_bus][from_bus] = self.problem.out_db["LineFlow"][(str(to_bus), str(from_bus))].get_level()
-            # self.zval = self.problem.out_db["ZVal"].first_record().value
-            # self.load_loss = self.problem.out_db["Load_loss"].first_record().value
-            # self.p_load_solved_distribution[0] = np.around(self.problem.out_db["p_solved_c"].first_record().value, 3)
-            # self.p_load_solved_distribution[1] =  np.around(self.problem.out_db["p_solved_nc"].first_record().value, 3)
-            ds.pload_served = [self.problem.out_db["PLoad_served"]["{}".format(i)].get_level() for i in range(self.num_bus)]
-            p_load_solved =  round(self.problem.out_db["p_solved"].first_record().value, 3)
-            ds.gen_status = [self.problem.out_db["OutGen_val"]["{}".format(i)].get_level() for i in range(self.num_bus)]
-            return (True, p_load_solved)
-        else:
-            print("Model did not converge, status {}".format(model_status))
-            return (False, p_load_solved)
-            # self.has_converged = False
+
+        return (model_converged, p_load_solved)
 
 
 class PowerOperations(object):

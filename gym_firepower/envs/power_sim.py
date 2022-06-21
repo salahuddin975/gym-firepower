@@ -234,12 +234,10 @@ class PowerOperations(object):
         self.live_equipment_removal_penalty = 0
 
     def _solve_initial_model(self):
-        self._agent_solved_power_generation = deepcopy(self._shared_ds.pg_injection)
-
         self._gams_interface.setup_problem(initial_model, self._shared_ds, self.episode_no, self.step_no)
         self.has_converged, self.p_load_solved = self._gams_interface.extract_results(self._shared_ds)
-
         assert self.has_converged, "Initial Model did not converge"
+
         # self.pg_injection_initial = deepcopy(self.ds.pg_injection)
         self.theta_initial = deepcopy(self._shared_ds.theta)
         self.power_flow_line_initial = deepcopy(self._shared_ds.power_flow_line)
@@ -248,8 +246,6 @@ class PowerOperations(object):
         self.pg_lower_initial = deepcopy(self._shared_ds.pg_lower)
 
     def _solve_runtime_model(self):
-        self._agent_solved_power_generation = deepcopy(self._shared_ds.pg_injection)
-
         self._gams_interface.setup_problem(run_time_model, self._shared_ds, self.episode_no, self.step_no)
         self.has_converged, self.p_load_solved = self._gams_interface.extract_results(self._shared_ds)
         assert self.has_converged, "Run time Model did not converge"
@@ -316,7 +312,7 @@ class PowerOperations(object):
 
     def get_state(self):
         state = {}
-        state["generator_injection"] = self._agent_solved_power_generation
+        state["generator_injection"] = self._shared_ds.pg_injection
         state["load_demand"] = self._shared_ds.p_load
         # state["load_demand"] = self._shared_ds.pload_served      # servable load demand
         state["branch_status"] = np.array([self._shared_ds.branch_status[self.from_buses[ctr]][self.to_buses[ctr]] for ctr in range(self.num_branch)])

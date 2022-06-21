@@ -238,10 +238,6 @@ class PowerOperations(object):
         self.has_converged, self.p_load_solved = self._gams_interface.extract_results(self._shared_ds)
         assert self.has_converged, "Initial Model did not converge"
 
-        # self.pg_injection_initial = deepcopy(self.ds.pg_injection)
-        self.theta_initial = deepcopy(self._shared_ds.theta)
-        self.power_flow_line_initial = deepcopy(self._shared_ds.power_flow_line)
-        self.ramp_upper_initial = deepcopy(self._shared_ds.ramp_upper)
         self.pg_upper_initial = deepcopy(self._shared_ds.pg_upper)
         self.pg_lower_initial = deepcopy(self._shared_ds.pg_lower)
 

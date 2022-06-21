@@ -144,7 +144,7 @@ class GamsInterface:
             for ctr_bus2 in range(self.num_bus):
                 self.B_.add_record((str(ctr_bus1), str(ctr_bus2))).value = float(self.B[ctr_bus1][ctr_bus2])
                 self.PLbar.add_record((str(ctr_bus1), str(ctr_bus2))).value = float(ds.power_flow_line_upper[ctr_bus1][ctr_bus2])
-                self.LineStat.add_record((str(ctr_bus1), str(ctr_bus2))).value = float(ds.branch_status[ctr_bus1][ctr_bus2])
+                self.LineStat.add_record((str(ctr_bus1), str(ctr_bus2))).value = round(ds.branch_status[ctr_bus1][ctr_bus2])
 
             self.NodeStat.add_record(str(ctr_bus1)).value = round(ds.bus_status[ctr_bus1])
             self.GenStat.add_record(str(ctr_bus1)).value = round(ds.gen_status[ctr_bus1])

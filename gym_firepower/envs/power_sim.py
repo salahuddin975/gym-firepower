@@ -156,26 +156,6 @@ class GamsInterface:
             self.CritVal.add_record(str(ctr_c+1)).value = float(self.weights[ctr_c])
         self.IntDur.add_record().value = self.sampling_duration
 
-
-        # print("power_sime: episode:", episode, "; step: ", step)
-        #
-        # print("PGLbarT:", ds.pg_lower)
-        # print("PGUbarT: ", ds.pg_upper)
-        # print("ThetaLbar: ", ds.theta_lower)
-        # print("ThetaUbar: ", ds.theta_upper)
-        # print("PLoad: ", ds.p_load)
-        # print("Rampbar: ", ds.ramp_upper)
-        # print("PGBegin: ", ds.pg_injection)
-        # # print("B_: ", self.B)
-        # # print("PLbar: ", ds.power_flow_line_upper)
-        # # print("LineStat: ", ds.branch_status)
-        # print("NodeStat: ", ds.bus_status)
-        # print("GenStat: ", ds.gen_status)
-        #
-        # print("CritFrac: ", self.non_crtitcal_fractional)
-        # print("CritVal: ", self.weights)
-        # print("IntDur: ", self.sampling_duration)
-
         self.problem = self.ws.add_job_from_string(opt_problem)
         opt = self.ws.add_options()
         opt.defines["gdxincname"] = self.db.name

@@ -77,7 +77,6 @@ class FirePowerEnv(gym.Env):
         status = self._get_status()
         reward = self._get_reward()
 
-        # if action["action_type"] == "rl":
         self.fire_spread_model.step()
         observation = self._get_state()
         burnt_cells = self.fire_spread_model.get_burning_cells()
@@ -113,9 +112,9 @@ class FirePowerEnv(gym.Env):
             # protection_penalty = self.power_sys_model.get_protection_operation_count() * self.pa_penalty
             # active_line_removal = -1 * self.power_sys_model.get_active_line_removal_penalty() * 25
 
-            penalty, load_loss = self.power_sys_model.get_penalty()
+            load_loss = -1 * self.power_sys_model.get_load_loss()
 
-            return penalty, load_loss
+            return load_loss, load_loss
             # return load_loss + active_line_removal, load_loss
             # return load_loss + protection_penalty + active_line_removal, load_loss
         else:

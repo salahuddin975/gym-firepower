@@ -358,15 +358,9 @@ class PowerOperations(object):
             if action["bus_status"][gen_bus] == 0 or self._shared_ds.bus_status[gen_bus] == 0:
                 continue
             if gen_bus in action["generator_selector"]:
-                # fixing PG_injections to the value provided by the agent
-                if self.train_environment:
-                    self._shared_ds.pg_injection[gen_bus] = self._agent_solved_power_generation[gen_bus] + injections[gen_bus]
-                    self._shared_ds.pg_lower[gen_bus] = self.pg_lower_initial[gen_bus]
-                    self._shared_ds.pg_upper[gen_bus] = self.pg_upper_initial[gen_bus]
-                else:
-                    self._shared_ds.pg_injection[gen_bus] = self._shared_ds.pg_injection[gen_bus] + injections[gen_bus]
-                    self._shared_ds.pg_lower[gen_bus] = self._shared_ds.pg_injection[gen_bus]
-                    self._shared_ds.pg_upper[gen_bus] = self._shared_ds.pg_injection[gen_bus]
+                self._shared_ds.pg_injection[gen_bus] = self._shared_ds.pg_injection[gen_bus] + injections[gen_bus]
+                self._shared_ds.pg_lower[gen_bus] = self._shared_ds.pg_injection[gen_bus]
+                self._shared_ds.pg_upper[gen_bus] = self._shared_ds.pg_injection[gen_bus]
             else:
                 # for free generators to initial values(P_MAX, P_MIN)
                 self._shared_ds.pg_lower[gen_bus] = self.pg_lower_initial[gen_bus]
@@ -531,17 +525,8 @@ class PowerOperations(object):
         # print("power_sim: episode:", action["episode"], "step: ", action["step_count"], "; fire_state_node: ", fire_state["node"])
         # print("power_sim: episode:", action["episode"], "step: ", action["step_count"], "; fire_state_branch: ", fire_state["branch"])
 
-        # if action["action_type"] == "myopic":
-        #     self._shared_ds = self._myopic_ds
-        # elif action["action_type"] == "target_myopic":
-        #     self._shared_ds = self._target_myopic_ds
-        # elif action["action_type"] == "rl":
-        #     self._shared_ds = self._rl_ds
-        #     self._set_generator_status_based_on_target_myopic()
-
         self.episode_no = action["episode"]
         self.step_no = action["step_count"]
-        self.train_environment = action["train_environment"]
 
         self.protection_action_count = 0
         self.live_equipment_removal_penalty = 0
@@ -569,35 +554,11 @@ class PowerOperations(object):
             logger.warn("Got non-convergence in the simulation checking")
             print("Got non-convergence in the simulation checking")
 
-        # if action["action_type"] == "rl":
-        #     self._target_myopic_ds = deepcopy(self._shared_ds)
-        #     self._rl_ds = deepcopy(self._shared_ds)
-        # elif action["action_type"] == "myopic":
-        #     self._myopic_ds = deepcopy(self._shared_ds)
-
     def get_status(self):
         return not self.has_converged
 
-    def get_penalty(self):
-        load_loss = np.zeros(len(self._agent_solved_power_generation))
-        generation_rejection = np.zeros(len(self._agent_solved_power_generation))
-
-        output = self._agent_solved_power_generation - self._shared_ds.pg_injection
-        for i, val in enumerate(output):
-            if val < 0:
-                load_loss[i] = val
-            if val > 0:
-                generation_rejection[i] = val
-
-        total_load_loss = np.sum(load_loss)
-        total_generation_rejection = np.sum(generation_rejection)
-        total_penalty = total_load_loss + (-1 * total_generation_rejection)
-        # print("total_load_loss: ", total_load_loss, ", total_generation_rejection: ", total_generation_rejection, ", total_penalty: ", total_penalty)
-
-        return total_penalty, total_load_loss
-
-    # def get_load_loss(self):
-    #     return round(sum(self._shared_ds.p_load_initial) - self.p_load_solved, 3)
+    def get_load_loss(self):
+        return round(sum(self._shared_ds.p_load_initial) - self.p_load_solved, 3)
     
     # def get_load_loss_weighted(self):
     #     # non critical load

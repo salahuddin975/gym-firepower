@@ -164,14 +164,12 @@ class GamsInterface:
     def extract_results(self, ds):
         p_load_solved = 0.0
         model_converged = False
-        model_status  = int(self.problem.out_db["ModStat"].first_record().value)
+        model_status = int(self.problem.out_db["ModStat"].first_record().value)
 
         if model_status not in [3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 18, 19]:
             model_converged = True
-
             p_load_solved = round(self.problem.out_db["p_solved"].first_record().value, 3)
             ds.pload_served = [self.problem.out_db["PLoad_served"]["{}".format(i)].get_level() for i in range(self.num_bus)]
-
             ds.gen_status = [self.problem.out_db["OutGen_val"]["{}".format(i)].get_level() for i in range(self.num_bus)]
             ds.pg_injection = np.around([self.problem.out_db["PGn"]["{}".format(i)].get_level() for i in range(self.num_bus)], 4)
 

@@ -228,10 +228,6 @@ class PowerOperations(object):
     def _initialize(self):
         self._shared_ds = SharedDataSet(self.ppc_int, self.initial_load_flow, self.num_bus, self.num_branch, self.from_buses, self.to_buses)
         self._solve_initial_model()
-        
-        self.protection_action_count = 0
-        self.live_equipment_removal_count = 0
-        self.live_equipment_removal_penalty = 0
 
     def _solve_initial_model(self):
         self._gams_interface.setup_problem(initial_model, self._shared_ds, self.episode_no, self.step_no)
@@ -290,8 +286,6 @@ class PowerOperations(object):
                 self._shared_ds.pload_served[node] = 0
                 self._shared_ds.bus_status[node] = 0
 
-        self.protection_action_count += protection_action_count
-
     def _remove_temp_files(self):
         temp_files = glob.glob(os.path.join(self.gams_dir, '_gams_py_*'))
         logger.debug("Deleting {} files from directory {}".format(len(temp_files), self.gams_dir))
@@ -332,15 +326,6 @@ class PowerOperations(object):
     def get_load_loss(self):
         return round(sum(self._shared_ds.p_load_initial) - self.p_load_solved, 3)
 
-    def get_protection_operation_count(self):
-        return self.protection_action_count
-    
-    def get_active_line_removal_count(self):
-        return self.live_equipment_removal_count
-    
-    def get_active_line_removal_penalty(self):
-        return self.live_equipment_removal_penalty
-    
     @ staticmethod
     def mergeGenerators(ppc):
         ppc_gen_trim = []

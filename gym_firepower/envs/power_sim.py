@@ -345,29 +345,27 @@ class PowerOperations(object):
         protection_action_count = 0
 
         for branch in fire_state["branch"]:
-            # if fire_state["branch"][branch] != self.previous_fire_state["branch"][branch]:
-                if fire_state["branch"][branch] == 0:
-                    if self._shared_ds.branch_status[branch[0]][branch[1]] == 1:
-                        protection_action_count += 1
-                        logger.info("Protection action at line ({}, {})".format(branch[0], branch[1]))
-                    self._shared_ds.branch_status[branch[0]][branch[1]] = 0
-                    self._shared_ds.branch_status[branch[1]][branch[0]] = 0
-                    self._shared_ds.power_flow_line_upper[branch[0]][branch[1]] = 0
-                    self._shared_ds.power_flow_line_upper[branch[1]][branch[0]] = 0
+            if fire_state["branch"][branch] == 0:
+                if self._shared_ds.branch_status[branch[0]][branch[1]] == 1:
+                    protection_action_count += 1
+                    logger.info("Protection action at line ({}, {})".format(branch[0], branch[1]))
+                self._shared_ds.branch_status[branch[0]][branch[1]] = 0
+                self._shared_ds.branch_status[branch[1]][branch[0]] = 0
+                self._shared_ds.power_flow_line_upper[branch[0]][branch[1]] = 0
+                self._shared_ds.power_flow_line_upper[branch[1]][branch[0]] = 0
         
         for node in fire_state["node"]:
-            # if fire_state["node"][node] != self.previous_fire_state["node"][node]:
-                if fire_state["node"][node] == 0:
-                    if self._shared_ds.pg_injection[node] > 0.001:
-                        protection_action_count += 1
-                        logger.info("Protection action at bus {}".format(node))
-                    self._shared_ds.pg_injection[node] = 0
-                    self._shared_ds.pg_lower[node] = 0
-                    self._shared_ds.pg_upper[node] = 0
-                    self._shared_ds.ramp_upper[node] = 0
-                    self._shared_ds.p_load[node] = 0
-                    self._shared_ds.pload_served[node] = 0
-                    self._shared_ds.bus_status[node] = 0
+            if fire_state["node"][node] == 0:
+                if self._shared_ds.pg_injection[node] > 0.001:
+                    protection_action_count += 1
+                    logger.info("Protection action at bus {}".format(node))
+                self._shared_ds.pg_injection[node] = 0
+                self._shared_ds.pg_lower[node] = 0
+                self._shared_ds.pg_upper[node] = 0
+                self._shared_ds.ramp_upper[node] = 0
+                self._shared_ds.p_load[node] = 0
+                self._shared_ds.pload_served[node] = 0
+                self._shared_ds.bus_status[node] = 0
 
         self.protection_action_count += protection_action_count
 

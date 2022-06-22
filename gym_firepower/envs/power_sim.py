@@ -325,7 +325,7 @@ class PowerOperations(object):
                 self._shared_ds.ramp_upper[i] = 0
 
     def step(self, action, fire_state):
-        if action["episode"] > 0 and action["step_count"] == 0:
+        if action["episode"] > 0 and action["step_count"] == 0 and action["action_type"] == "myopic":
             print("load saved power state...")
             self._myopic_ds = deepcopy(self._reload_myopic_ds)
             self._target_myopic_ds = deepcopy(self._reload_target_myopic_ds)

@@ -326,6 +326,7 @@ class PowerOperations(object):
 
     def step(self, action, fire_state):
         if action["episode"] > 0 and action["step_count"] == 0:
+            print("load saved power state...")
             self._myopic_ds = deepcopy(self._reload_myopic_ds)
             self._target_myopic_ds = deepcopy(self._reload_target_myopic_ds)
             self._rl_ds = deepcopy(self._reload_rl_ds)
@@ -360,6 +361,7 @@ class PowerOperations(object):
 
     def save_state_to_reload(self, action):
         if action["episode"] == 0 and action["reload_step"] == action["step_count"]:
+            print("save power state at: ", action["step_count"])
             self._reload_myopic_ds = deepcopy(self._myopic_ds)
             self._reload_target_myopic_ds = deepcopy(self._target_myopic_ds)
             self._reload_rl_ds = deepcopy(self._rl_ds)

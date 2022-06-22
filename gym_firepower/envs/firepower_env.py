@@ -78,7 +78,12 @@ class FirePowerEnv(gym.Env):
         reward = self._get_reward()
 
         if action["action_type"] == "rl":
-            self.fire_spread_model.step()
+            if action["step_count"] == 0:
+                for _ in range(action["start_step"]):
+                    self.fire_spread_model.step()
+            else:
+                self.fire_spread_model.step()
+
         observation = self._get_state()
         burnt_cells = self.fire_spread_model.get_burning_cells()
         return observation, reward, status, burnt_cells

@@ -78,8 +78,8 @@ class FirePowerEnv(gym.Env):
         reward = self._get_reward()
 
         if action["action_type"] == "rl":
-            if action["step_count"] == 0:
-                for _ in range(action["start_step"]):
+            if action["episode"] > 0 and action["step_count"] == 0:
+                for _ in range(action["reload_step"]):
                     self.fire_spread_model.step()
             else:
                 self.fire_spread_model.step()

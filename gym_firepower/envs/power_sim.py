@@ -234,7 +234,7 @@ class PowerOperations(object):
         self._target_myopic_ds = deepcopy(self._shared_ds)
         self._rl_ds = deepcopy(self._shared_ds)
 
-    def _solve_initial_model(self):        
+    def _solve_initial_model(self):
         self._gams_interface.setup_problem(initial_model_v2, self._shared_ds, self.episode_no, self.step_no)
         self.has_converged, self.p_load_solved = self._gams_interface.extract_results(self._shared_ds)
 
@@ -267,9 +267,9 @@ class PowerOperations(object):
                 # for free generators to initial values(P_MAX, P_MIN)
                 self._shared_ds.pg_lower[gen_bus] = self.pg_lower_initial[gen_bus]
                 self._shared_ds.pg_upper[gen_bus] = self.pg_upper_initial[gen_bus]
-        
+
         return False
-    
+
     def _check_protection_system_actions(self, fire_state):
         for branch in fire_state["branch"]:
             if fire_state["branch"][branch] == 0:
@@ -277,7 +277,7 @@ class PowerOperations(object):
                 self._shared_ds.branch_status[branch[1]][branch[0]] = 0
                 self._shared_ds.power_flow_line_upper[branch[0]][branch[1]] = 0
                 self._shared_ds.power_flow_line_upper[branch[1]][branch[0]] = 0
-        
+
         for node in fire_state["node"]:
             if fire_state["node"][node] == 0:
                 self._shared_ds.pg_injection[node] = 0
@@ -325,6 +325,11 @@ class PowerOperations(object):
                 self._shared_ds.ramp_upper[i] = 0
 
     def step(self, action, fire_state):
+        if action["episode"] > 0 and action["step_count"] == 0:
+            self._myopic_ds = deepcopy(self._reload_myopic_ds)
+            self._target_myopic_ds = deepcopy(self._reload_target_myopic_ds)
+            self._rl_ds = deepcopy(self._reload_rl_ds)
+
         if action["action_type"] == "myopic":
             self._shared_ds = self._myopic_ds
         elif action["action_type"] == "target_myopic":
@@ -346,11 +351,18 @@ class PowerOperations(object):
             logger.warn("Got non-convergence in the simulation checking")
             print("Got non-convergence in the simulation checking")
 
-        if action["action_type"] == "rl":
+        if action["action_type"] == "myopic":
+            self._myopic_ds = deepcopy(self._shared_ds)
+        elif action["action_type"] == "rl":
             self._target_myopic_ds = deepcopy(self._shared_ds)
             self._rl_ds = deepcopy(self._shared_ds)
-        elif action["action_type"] == "myopic":
-            self._myopic_ds = deepcopy(self._shared_ds)
+            self.save_state_to_reload(action)
+
+    def save_state_to_reload(self, action):
+        if action["episode"] == 0 and action["reload_step"] == action["step_count"]:
+            self._reload_myopic_ds = deepcopy(self._myopic_ds)
+            self._reload_target_myopic_ds = deepcopy(self._target_myopic_ds)
+            self._reload_rl_ds = deepcopy(self._rl_ds)
 
     def get_status(self):
         return not self.has_converged
@@ -375,7 +387,7 @@ class PowerOperations(object):
             ptr1 += 1
         ppc_gen_trim.append(temp)
         ppc["gen"] = np.asarray(ppc_gen_trim)
-    
+
     @ staticmethod
     def mergeBranches(ppc):
         ppc_branch_trim = []

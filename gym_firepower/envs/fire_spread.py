@@ -15,6 +15,7 @@ from gym.utils import seeding
 from gym_firepower.envs.fire_spread_log_writer import FireSpreadInfoWriter
 # from fire_spread_log_writer import FireSpreadInfoWriter
 from gym_firepower.envs.fire_propagation_visualizer import Visualizer
+
 # from fire_propagation_visualizer import Visualizer
 
 
@@ -40,7 +41,7 @@ class Grid(object):
         self._register_neighboring_cells()
 
     def _parse_geo_file(self, geo_file):
-        args = {"cols": 40, "rows": 40, "sources": [[5, 5]], "seed": 30, "random_source":False, "num_sources":1}
+        args = {"cols": 40, "rows": 40, "sources": [[5, 5]], "seed": 30, "random_source": False, "num_sources": 1}
         with open(geo_file, 'r') as config_file:
             args.update(json.load(config_file))
 
@@ -58,7 +59,7 @@ class Grid(object):
         self.num_sources = args["num_sources"]
         self.fire_source = np.full((self.rows, self.cols), False)
 
-        self.sources = [ (arg[1], arg[0]) for arg in args["sources"] ]
+        self.sources = [(arg[1], arg[0]) for arg in args["sources"]]
         for src in self.sources:
             self.fire_source[src[0], src[1]] = True
 
@@ -68,7 +69,7 @@ class Grid(object):
         self._create_base_image(args["fuel_type"])
         self.newly_added_burning_cells = np.array([cell for cell in self.sources], dtype=int)
         self._burning_cells = self.sources
-        self.fire_distance = {"nodes": {}, "branches": {} }
+        self.fire_distance = {"nodes": {}, "branches": {}}
         self._calculate_distance_from_fire()
 
     def _identify_critical_cells(self, bus_ids, branches):
@@ -87,7 +88,7 @@ class Grid(object):
                 cells.extend(points.tolist())
                 self.branch_ids[branch[0]].update({branch[1]: points})
         return cells
-    
+
     def _update_matrices_based_on_configuration_file(self, args):
         if "fuel_type" in args.keys():
             self._update_with_configuration(args["fuel_type"], self.fuel_type)
@@ -95,13 +96,13 @@ class Grid(object):
             self._update_with_configuration(args["fuel_amt"], self.fuel_amt)
         if "spread_probab" in args.keys():
             self._update_with_configuration(args["spread_probab"], self.spread_probab)
-    
+
     def _update_with_configuration(self, conf_sparse_matrix, full_matrix):
         for col, row, val in conf_sparse_matrix:
             col = int(col)
             row = int(row)
-            full_matrix[row,col] = val
-    
+            full_matrix[row, col] = val
+
     def _create_grid(self, rng):
         self.grid = []
         for row in range(self.rows):
@@ -117,19 +118,19 @@ class Grid(object):
         params["row"] = row
         params["col"] = col
         params["scaling_factor"] = self.scaling_factor
-        params["fuel_type"] = self.fuel_type[row,col]
-        params["fuel_amt"] = self.fuel_amt[row,col]
-        params["spread_probab"]= self.spread_probab[row,col]
-        if (row,col) in self.sources:
+        params["fuel_type"] = self.fuel_type[row, col]
+        params["fuel_amt"] = self.fuel_amt[row, col]
+        params["spread_probab"] = self.spread_probab[row, col]
+        if (row, col) in self.sources:
             params["source_flag"] = True
             self.state[row, col] = CellState.BURNING
         else:
             params["source_flag"] = False
         return params
-    
+
     def _register_neighboring_cells(self):
-        delta_row_col = [ (-1,-1), (-1,0), (-1,1), (0,-1),
-                            (0,1), (1,-1), (1, 0), (1,1) ]
+        delta_row_col = [(-1, -1), (-1, 0), (-1, 1), (0, -1),
+                         (0, 1), (1, -1), (1, 0), (1, 1)]
         for row in range(self.rows):
             for col in range(self.cols):
                 neighbors = []
@@ -139,7 +140,7 @@ class Grid(object):
                     if 0 <= new_row < self.rows and 0 <= new_col < self.cols:
                         neighbors.append(self.grid[new_row][new_col])
                 self.grid[row][col].register_neighbors(neighbors)
-    
+
     def _create_base_image(self, fuel_type):
         self.base_image = np.zeros((self.rows, self.cols, 3), np.uint8)
         self.base_image[:, :, 1] = np.full((self.rows, self.cols), 255)
@@ -151,30 +152,30 @@ class Grid(object):
             x0 = self.bus_ids[branch[0]]
             x1 = self.bus_ids[branch[1]]
             rr, cc = line(x0[0], x0[1], x1[0], x1[1])
-            self.base_image[rr, cc, : ] = 10
+            self.base_image[rr, cc, :] = 10
 
     def get_current_image(self):
         temp = deepcopy(self.base_image)
-        temp[:,:,0] = 100*self.state
-        temp[:,:,1] = temp[:,:,1] - self.state*temp[:,:,1]
+        temp[:, :, 0] = 100 * self.state
+        temp[:, :, 1] = temp[:, :, 1] - self.state * temp[:, :, 1]
         return temp
 
-    def step_ajay(self):
-        self.newly_added_burning_cells = []
-        for row in range(self.rows):
-            for col in range(self.cols):
-                self.grid[row][col].step_ajay()
-                if self.grid[row][col].next_state != self.grid[row][col].state:
-                    if self.grid[row][col].next_state == CellState.BURNING:
-                        self.newly_added_burning_cells.append((row, col))
-        self.newly_added_burning_cells = np.array(self.newly_added_burning_cells, dtype=int)
-
-        for row in range(self.rows):
-            for col in range(self.cols):
-                self.state[row, col] = self.grid[row][col].update_state()
-
-        # self.total += self.newly_added_burning_cells.size/2
-        # print("total_burning_cells: ", int(self.total))
+    # def step_ajay(self):
+    #     self.newly_added_burning_cells = []
+    #     for row in range(self.rows):
+    #         for col in range(self.cols):
+    #             self.grid[row][col].step_ajay()
+    #             if self.grid[row][col].next_state != self.grid[row][col].state:
+    #                 if self.grid[row][col].next_state == CellState.BURNING:
+    #                     self.newly_added_burning_cells.append((row, col))
+    #     self.newly_added_burning_cells = np.array(self.newly_added_burning_cells, dtype=int)
+    #
+    #     for row in range(self.rows):
+    #         for col in range(self.cols):
+    #             self.state[row, col] = self.grid[row][col].update_state()
+    #
+    #     # self.total += self.newly_added_burning_cells.size/2
+    #     # print("total_burning_cells: ", int(self.total))
 
     def step(self):
         burnt_cells = []
@@ -199,13 +200,17 @@ class Grid(object):
         # self.total += self.newly_added_burning_cells.size/2
         # print("total_burning_cells:", int(self.total))
 
+    def reset_seed(self, rng):
+        self.rng = rng
+
     def reset(self):
         self._get_new_sources()
         print("fire starts at: ", self.sources)
 
         for row in range(self.rows):
             for col in range(self.cols):
-                src_flag = self.fire_source[row,col] 
+                src_flag = self.fire_source[row, col]
+                self.grid[row][col].reset_seed(self.rng)
                 self.state[row, col] = self.grid[row][col].reset(src_flag)
 
         self.newly_added_burning_cells = np.array([cell for cell in self.sources], dtype=int)
@@ -234,14 +239,14 @@ class Grid(object):
                 while (num_sources > 0):
                     row = self.rng.randint(min_row, max_row)
                     col = self.rng.randint(min_col, max_col)
-                    if self.grid[row][col].fuel_type !=0 and [row, col] not in self.critical_cells:
+                    if self.grid[row][col].fuel_type != 0 and [row, col] not in self.critical_cells:
                         self.sources.append((row, col))
                         self.fire_source[row][col] = True
                         num_sources -= 1
 
     def get_state(self):
         return deepcopy(self.state)
-    
+
     def get_reduced_state(self):
         bus_dict = {}
         branch_dict = {}
@@ -249,9 +254,9 @@ class Grid(object):
             row, col = self.bus_ids[bus]
             state = self.state[row, col]
             if state == CellState.UNBURNT:
-                bus_dict[bus] = 1 # 1 implies bus is in service
+                bus_dict[bus] = 1  # 1 implies bus is in service
             else:
-                bus_dict[bus] = 0 # 0 implies bus is out of service
+                bus_dict[bus] = 0  # 0 implies bus is out of service
         for branch in self.branches:
             from_bus = int(branch[0])
             to_bus = int(branch[1])
@@ -264,7 +269,7 @@ class Grid(object):
                     break
             branch_dict[(from_bus, to_bus)] = answer
         return {"node": deepcopy(bus_dict), "branch": deepcopy(branch_dict)}
-    
+
     def get_distance_from_fire(self):
         self._calculate_distance_from_fire()
         return deepcopy(self.fire_distance)
@@ -305,7 +310,7 @@ class Grid(object):
             return round(norm(P - A), 3)
         if arccos(dot((P - B) / norm(P - B), (A - B) / norm(A - B))) > pi / 2:
             return round(norm(P - B), 3)
-        return round(norm(cross(A-B, A-P))/norm(B-A),3)
+        return round(norm(cross(A - B, A - P)) / norm(B - A), 3)
 
     def _calculate_min_distance(self, A, B, E):
         # vector AB
@@ -357,7 +362,7 @@ class Grid(object):
 
 class Cell(object):
     def __init__(self, row, col, fuel_type, fuel_amt, spread_probab,
-                    scaling_factor, source_flag, rng):
+                 scaling_factor, source_flag, rng):
         self.rng = rng
         self.row = row
         self.col = col
@@ -370,11 +375,11 @@ class Cell(object):
         self.fuel_type = fuel_type
         assert fuel_amt >= 0, "fuel amount cannot be negative"
         assert (not (fuel_type < 0) or (fuel_amt > 0)), "Fuel amount should be more \
-                                            than 0 if the type of cell is flammable" 
+                                            than 0 if the type of cell is flammable"
 
         self.init_amt = fuel_amt
-        self.spread_probab = spread_probab     # probability of spreading fire from cell x to each neighbor.
-        self.scaling_factor = scaling_factor   # determines number of steps of fire model == number of steps power model
+        self.spread_probab = spread_probab  # probability of spreading fire from cell x to each neighbor.
+        self.scaling_factor = scaling_factor  # determines number of steps of fire model == number of steps power model
 
         self.neighbors = []
         self.fuel_amount = self.init_amt
@@ -386,29 +391,29 @@ class Cell(object):
 
     def register_neighbors(self, neighbors):
         self.neighbors = neighbors
-    
-    def step_ajay(self):
-        if self.fuel_type != 0:
-            if self.state == CellState.UNBURNT:
-                if self.counter == self.scaling_factor:
-                    self.counter = 1
-                    pho = 1
-                    for neighbor in self.neighbors:           #probability increases if more neighbors in burning state
-                        if neighbor.state == CellState.BURNING:
-                            pho *= 1 - neighbor.spread_probab
-                    pho = 1 - pho
-                    
-                    roll_dice = self.rng.uniform(0, 1)
-                    if roll_dice <= pho:
-                        self.next_state = CellState.BURNING
-                else:
-                    self.counter += 1
-            elif self.state == CellState.BURNING:
-                self.fuel_amount = self.fuel_amount + self.fuel_type
-                if self.fuel_amount <= 0:
-                    self.next_state = CellState.BURNT
-            elif self.state == CellState.BURNT:
-                pass
+
+    # def step_ajay(self):
+    #     if self.fuel_type != 0:
+    #         if self.state == CellState.UNBURNT:
+    #             if self.counter == self.scaling_factor:
+    #                 self.counter = 1
+    #                 pho = 1
+    #                 for neighbor in self.neighbors:           #probability increases if more neighbors in burning state
+    #                     if neighbor.state == CellState.BURNING:
+    #                         pho *= 1 - neighbor.spread_probab
+    #                 pho = 1 - pho
+    #
+    #                 roll_dice = self.rng.uniform(0, 1)
+    #                 if roll_dice <= pho:
+    #                     self.next_state = CellState.BURNING
+    #             else:
+    #                 self.counter += 1
+    #         elif self.state == CellState.BURNING:
+    #             self.fuel_amount = self.fuel_amount + self.fuel_type
+    #             if self.fuel_amount <= 0:
+    #                 self.next_state = CellState.BURNT
+    #         elif self.state == CellState.BURNT:
+    #             pass
 
     def step(self, newly_added_burning_cells):
         for neighbor in self.neighbors:
@@ -425,6 +430,9 @@ class Cell(object):
 
     def get_state(self):
         return self.state
+
+    def reset_seed(self, rng):
+        self.rng = rng
 
     def reset(self, source_flag):
         self.fuel_amount = self.init_amt
@@ -449,6 +457,7 @@ class Cell(object):
 class FireSpread(object):
     def __init__(self, conf_file, factor, seed, save_fire_spread_info=False):
         print("----------- fire_spread_prob:", DEFAULT_SPREAD_PROBAB, "--------------")
+        self.seed = seed
         np_rng, seed = seeding.np_random(seed)
         self.grid = Grid(conf_file, factor, np_rng)
 
@@ -468,7 +477,13 @@ class FireSpread(object):
     def step(self):
         self.grid.step()
 
+    def reset_seed(self, seed):
+        np_rng, seed = seeding.np_random(seed)
+        self.grid.reset_seed(np_rng)
+
     def reset(self):
+        self.reset_seed(self.seed)
+
         self.grid.reset()
         if self._save_fire_spread_info:
             self.fire_stats_writer.reset()
@@ -494,6 +509,7 @@ if __name__ == "__main__":
     num_of_episode = 5
     num_of_steps = 300
     for j in range(num_of_episode):
+        fire_spread.reset_seed(seed)
         fire_spread.reset()
         for i in range(num_of_steps):
             fire_spread.step()
@@ -507,7 +523,7 @@ if __name__ == "__main__":
 
             # print("state:", fire_spread.get_state())
             # print("reduced_state:", state)
-            # print("distance:", distance)
+            print("distance:", distance)
 
     images[0].save("map.gif", save_all=True, append_images=images[1:], loop=True)
     computation_time = (datetime.now() - start_time).total_seconds()

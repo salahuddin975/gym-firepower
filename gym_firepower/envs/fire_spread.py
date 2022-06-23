@@ -457,8 +457,8 @@ class Cell(object):
 class FireSpread(object):
     def __init__(self, conf_file, factor, seed, save_fire_spread_info=False):
         print("----------- fire_spread_prob:", DEFAULT_SPREAD_PROBAB, "--------------")
-        self.seed = seed
         np_rng, seed = seeding.np_random(seed)
+        self.np_rng = np_rng
         self.grid = Grid(conf_file, factor, np_rng)
 
         self._save_fire_spread_info = save_fire_spread_info
@@ -477,12 +477,11 @@ class FireSpread(object):
     def step(self):
         self.grid.step()
 
-    def reset_seed(self, seed):
-        np_rng, seed = seeding.np_random(seed)
-        self.grid.reset_seed(np_rng)
+    def reset_seed(self):
+        self.grid.reset_seed(self.np_rng)
 
     def reset(self):
-        self.reset_seed(self.seed)
+        self.reset_seed()
 
         self.grid.reset()
         if self._save_fire_spread_info:

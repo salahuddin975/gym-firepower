@@ -167,14 +167,14 @@ class GamsInterface:
         if model_status not in [3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 18, 19]:
             # self.has_converged = True
             ds.theta = [self.problem.out_db["Theta"]["{}".format(i)].get_level() for i in range(self.num_bus)]
-            ds.pg_injection = np.around([self.problem.out_db["PGn"]["{}".format(i)].get_level() for i in range(self.num_bus)], 4)
+            ds.pg_injection = [self.problem.out_db["PGn"]["{}".format(i)].get_level() for i in range(self.num_bus)]
             for i in range(self.num_branch):
                 from_bus = self.from_buses[i]
                 to_bus = self.to_buses[i]
                 ds.power_flow_line[from_bus][to_bus] = self.problem.out_db["LineFlow"][(str(from_bus), str(to_bus))].get_level()
                 ds.power_flow_line[to_bus][from_bus] = self.problem.out_db["LineFlow"][(str(to_bus), str(from_bus))].get_level()
             ds.pload_served = [self.problem.out_db["PLoad_served"]["{}".format(i)].get_level() for i in range(self.num_bus)]
-            p_load_solved =  round(self.problem.out_db["p_solved"].first_record().value, 3)
+            p_load_solved =  self.problem.out_db["p_solved"].first_record().value
             ds.gen_status = [self.problem.out_db["OutGen_val"]["{}".format(i)].get_level() for i in range(self.num_bus)]
             return (True, p_load_solved)
         else:
@@ -250,7 +250,7 @@ class PowerOperations(object):
     def _check_violations(self, action):
         injections = {int(key): 0 for key in action["generator_selector"]}
         for gen_pair in zip(action["generator_selector"], action["generator_injection"]):
-            injections[gen_pair[0]] += round(gen_pair[1],4)
+            injections[gen_pair[0]] += gen_pair[1]
 
         # update pg_upper and pg_lower 
         for gen_bus in self.ppc_int["gen"][:,GEN_BUS]:
@@ -267,7 +267,7 @@ class PowerOperations(object):
                 # for free generators to initial values(P_MAX, P_MIN)
                 self._shared_ds.pg_lower[gen_bus] = self.pg_lower_initial[gen_bus]
                 self._shared_ds.pg_upper[gen_bus] = self.pg_upper_initial[gen_bus]
-        
+
         return False
     
     def _check_protection_system_actions(self, fire_state):
@@ -356,7 +356,7 @@ class PowerOperations(object):
         return not self.has_converged
 
     def get_load_loss(self):
-        return round(sum(self._shared_ds.p_load_initial) - self.p_load_solved, 3)
+        return sum(self._shared_ds.p_load_initial) - self.p_load_solved
 
     @ staticmethod
     def mergeGenerators(ppc):

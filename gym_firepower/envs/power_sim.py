@@ -167,13 +167,13 @@ class GamsInterface:
         if model_status not in [3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 18, 19]:
             # self.has_converged = True
             ds.theta = [self.problem.out_db["Theta"]["{}".format(i)].get_level() for i in range(self.num_bus)]
-            ds.pg_injection = [self.problem.out_db["PGn"]["{}".format(i)].get_level() for i in range(self.num_bus)]
+            ds.pg_injection = np.around([self.problem.out_db["PGn"]["{}".format(i)].get_level() for i in range(self.num_bus)], 5)
             for i in range(self.num_branch):
                 from_bus = self.from_buses[i]
                 to_bus = self.to_buses[i]
                 ds.power_flow_line[from_bus][to_bus] = self.problem.out_db["LineFlow"][(str(from_bus), str(to_bus))].get_level()
                 ds.power_flow_line[to_bus][from_bus] = self.problem.out_db["LineFlow"][(str(to_bus), str(from_bus))].get_level()
-            ds.pload_served = [self.problem.out_db["PLoad_served"]["{}".format(i)].get_level() for i in range(self.num_bus)]
+            ds.pload_served = np.around([self.problem.out_db["PLoad_served"]["{}".format(i)].get_level() for i in range(self.num_bus)], 5)
             p_load_solved =  self.problem.out_db["p_solved"].first_record().value
             ds.gen_status = [self.problem.out_db["OutGen_val"]["{}".format(i)].get_level() for i in range(self.num_bus)]
             return (True, p_load_solved)

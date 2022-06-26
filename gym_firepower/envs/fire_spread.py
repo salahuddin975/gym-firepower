@@ -14,8 +14,6 @@ from enum import Enum
 from gym.utils import seeding
 from gym_firepower.envs.fire_spread_log_writer import FireSpreadInfoWriter
 # from fire_spread_log_writer import FireSpreadInfoWriter
-from gym_firepower.envs.fire_propagation_visualizer import Visualizer
-# from fire_propagation_visualizer import Visualizer
 
 
 DEFAULT_FUEL_TYPE = -3
@@ -65,7 +63,7 @@ class Grid(object):
         self.branches = args["branches"]
         self.critical_cells = self._identify_critical_cells(args["bus_ids"], args["branches"])
 
-        self._create_base_image(args["fuel_type"])
+        # self._create_base_image(args["fuel_type"])
         self.newly_added_burning_cells = np.array([cell for cell in self.sources], dtype=int)
         self._burning_cells = self.sources
         self.fire_distance = {"nodes": {}, "branches": {} }
@@ -369,7 +367,7 @@ class Cell(object):
         assert fuel_type <= 0, "incorrect fuel type, slope should be non positive"
         self.fuel_type = fuel_type
         assert fuel_amt >= 0, "fuel amount cannot be negative"
-        assert (not (fuel_type < 0) or (fuel_amt > 0)), "Fuel amount should be more \
+        assert (not (fuel_type < 0) or (fuel_amt >= 0)), "Fuel amount should be more \
                                             than 0 if the type of cell is flammable" 
 
         self.init_amt = fuel_amt
@@ -487,7 +485,6 @@ if __name__ == "__main__":
     conf_file = "./../../../FirePower-agent-private/configurations/configuration.json"
     seed = 50
     fire_spread = FireSpread(conf_file, 1, seed, True)
-    visualizer = Visualizer(conf_file)
 
     images = []
     start_time = datetime.now()
@@ -501,14 +498,10 @@ if __name__ == "__main__":
             distance = fire_spread.get_distance_from_fire()
 
             burning_cells, all_burnt_cells = fire_spread.get_burning_cells()
-            image = visualizer.draw_map(i, burning_cells)
-            image.save(f"map_{j}_{i}.png")
-            images.append(image)
 
             # print("state:", fire_spread.get_state())
             # print("reduced_state:", state)
-            # print("distance:", distance)
+            print("distance:", distance)
 
-    images[0].save("map.gif", save_all=True, append_images=images[1:], loop=True)
     computation_time = (datetime.now() - start_time).total_seconds()
     print("total_computation_time:", computation_time)

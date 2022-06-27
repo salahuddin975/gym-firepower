@@ -16,7 +16,7 @@ from gym.utils import seeding
 # from fire_spread_log_writer import FireSpreadInfoWriter
 
 
-DEFAULT_FUEL_TYPE = -3
+DEFAULT_FUEL_TYPE = -1
 DEFAULT_FUEL_AMT = 100
 DEFAULT_SPREAD_PROBAB = 0.029
 
@@ -33,6 +33,7 @@ class Grid(object):
         self.total = 0
         self.scaling_factor = scaling_factor
         self.branch_ids = defaultdict(dict)
+        self.fuel_amt_path = "configurations/fuel_amount.json"
         self._parse_geo_file(geo_file)
         self._create_grid(rng)
         self._register_neighboring_cells()
@@ -41,6 +42,8 @@ class Grid(object):
         args = {"cols": 40, "rows": 40, "sources": [[5, 5]], "seed": 30, "random_source":False, "num_sources":1}
         with open(geo_file, 'r') as config_file:
             args.update(json.load(config_file))
+        with open(self.fuel_amt_path, 'r') as fuel_amount:
+            args.update(json.load(fuel_amount))
 
         self.rows = int(args["rows"])
         self.cols = int(args["cols"])

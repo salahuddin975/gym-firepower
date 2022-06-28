@@ -18,7 +18,7 @@ from gym.utils import seeding
 
 DEFAULT_FUEL_TYPE = -1
 DEFAULT_FUEL_AMT = 100
-DEFAULT_SPREAD_PROBAB = 0.029
+DEFAULT_SPREAD_PROBAB = 0.025
 
 
 class CellState(Enum):

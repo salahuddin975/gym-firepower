@@ -16,10 +16,12 @@ from gym.utils import seeding
 # from fire_spread_log_writer import FireSpreadInfoWriter
 
 
-DEFAULT_FUEL_TYPE = -1
+DEFAULT_FUEL_TYPE = -1.5
 DEFAULT_FUEL_AMT = 100
-DEFAULT_SPREAD_PROBAB = 0.020
+DEFAULT_SPREAD_PROBAB = 0.025
 
+MAX_NUM_FIRE_SOURCES = 5
+NEW_FIRE_SOURCE_PROBAB = 0.05
 
 class CellState(Enum):
     UNBURNT = 0
@@ -31,6 +33,7 @@ class Grid(object):
     def __init__(self, geo_file, scaling_factor, rng):
         self.rng = rng
         self.total = 0
+        self.num_of_fire_sources = 0
         self.scaling_factor = scaling_factor
         self.branch_ids = defaultdict(dict)
         self.fuel_amt_path = "configurations/fuel_amount.json"
@@ -196,11 +199,17 @@ class Grid(object):
             self.state[cell] = CellState.BURNING
         self._burning_cells = self._burning_cells + newly_added_burning_cells
 
+        if (NEW_FIRE_SOURCE_PROBAB > random.random()) and (self.num_of_fire_sources < MAX_NUM_FIRE_SOURCES):
+            self._get_new_sources()
+            self._burning_cells.extend(self.sources)
+            print("======== add new source: ", self.sources, ", total sources: ", self.num_of_fire_sources)
+
         self.newly_added_burning_cells = np.array(newly_added_burning_cells, dtype=int)
         # self.total += self.newly_added_burning_cells.size/2
         # print("total_burning_cells:", int(self.total))
 
     def reset(self):
+        self.num_of_fire_sources = 0
         self._get_new_sources()
         print("fire starts at: ", self.sources)
 
@@ -221,6 +230,7 @@ class Grid(object):
         return (self._burning_cells, self._all_burnt_cells)
 
     def _get_new_sources(self):
+        self.num_of_fire_sources += 1
         if self.random_source:
             self.fire_source = np.full((self.rows, self.cols), False)
             self.sources = []

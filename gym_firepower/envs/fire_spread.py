@@ -16,12 +16,12 @@ from gym.utils import seeding
 # from fire_spread_log_writer import FireSpreadInfoWriter
 
 
-DEFAULT_FUEL_TYPE = -1.5
+DEFAULT_FUEL_TYPE = -1
 DEFAULT_FUEL_AMT = 100
-DEFAULT_SPREAD_PROBAB = 0.025
+DEFAULT_SPREAD_PROBAB = 0.02
 
-MAX_NUM_FIRE_SOURCES = 5
-NEW_FIRE_SOURCE_PROBAB = 0.05
+MAX_NUM_FIRE_SOURCES = 0
+NEW_FIRE_SOURCE_PROBAB = 0.02
 
 class CellState(Enum):
     UNBURNT = 0

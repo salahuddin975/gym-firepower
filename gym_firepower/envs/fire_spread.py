@@ -20,8 +20,9 @@ DEFAULT_FUEL_TYPE = -1
 DEFAULT_FUEL_AMT = 100
 DEFAULT_SPREAD_PROBAB = 0.02
 
-MAX_NUM_FIRE_SOURCES = 0
-NEW_FIRE_SOURCE_PROBAB = 0.02
+MAX_NUM_FIRE_SOURCES = 5
+NEW_FIRE_SOURCE_PROBAB = 0.015
+MIN_STEPS_FOR_NEXT_FIRE_SOURCE = 15
 
 class CellState(Enum):
     UNBURNT = 0
@@ -199,7 +200,8 @@ class Grid(object):
             self.state[cell] = CellState.BURNING
         self._burning_cells = self._burning_cells + newly_added_burning_cells
 
-        if (NEW_FIRE_SOURCE_PROBAB > random.random()) and (self.num_of_fire_sources < MAX_NUM_FIRE_SOURCES):
+        self.last_new_fire_sources += 1
+        if (NEW_FIRE_SOURCE_PROBAB > random.random()) and (self.num_of_fire_sources < MAX_NUM_FIRE_SOURCES) and self.last_new_fire_sources > MIN_STEPS_FOR_NEXT_FIRE_SOURCE:
             self._get_new_sources()
             self._burning_cells.extend(self.sources)
             print("======== add new source: ", self.sources, ", total sources: ", self.num_of_fire_sources)
@@ -230,6 +232,7 @@ class Grid(object):
         return (self._burning_cells, self._all_burnt_cells)
 
     def _get_new_sources(self):
+        self.last_new_fire_sources = 0
         self.num_of_fire_sources += 1
         if self.random_source:
             self.fire_source = np.full((self.rows, self.cols), False)
@@ -423,7 +426,7 @@ class Cell(object):
 
     def step(self, newly_added_burning_cells):
         for neighbor in self.neighbors:
-            if neighbor.fuel_type != 0 and neighbor.state == CellState.UNBURNT:
+            if neighbor.fuel_amount > 0 and neighbor.state == CellState.UNBURNT:
                 roll_dice = self.rng.uniform(0, 1)
                 if roll_dice <= self.spread_probab:
                     neighbor.state = CellState.BURNING

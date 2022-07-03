@@ -12,7 +12,7 @@ from gym import logger
 import math
 from enum import Enum
 from gym.utils import seeding
-# from gym_firepower.envs.fire_spread_log_writer import FireSpreadInfoWriter
+from gym_firepower.envs.fire_spread_log_writer import FireSpreadInfoWriter
 # from fire_spread_log_writer import FireSpreadInfoWriter
 
 
@@ -466,17 +466,17 @@ class FireSpread(object):
         np_rng, seed = seeding.np_random(seed)
         self.grid = Grid(conf_file, factor, np_rng)
 
-        # self._save_fire_spread_info = save_fire_spread_info
-        # if self._save_fire_spread_info:
-        #     self.fire_stats_writer = FireSpreadInfoWriter("./", seed, DEFAULT_SPREAD_PROBAB)
+        self._save_fire_spread_info = save_fire_spread_info
+        if self._save_fire_spread_info:
+            self.fire_stats_writer = FireSpreadInfoWriter("./", seed, DEFAULT_SPREAD_PROBAB)
 
     def get_state(self):
         return self.grid.get_state()
 
     def get_reduced_state(self):
         fire_state = self.grid.get_reduced_state()
-        # if self._save_fire_spread_info:
-        #     self.fire_stats_writer.add_info(fire_state)
+        if self._save_fire_spread_info:
+            self.fire_stats_writer.add_info(fire_state)
         return fire_state
 
     def step(self):
@@ -484,8 +484,8 @@ class FireSpread(object):
 
     def reset(self):
         self.grid.reset()
-        # if self._save_fire_spread_info:
-        #     self.fire_stats_writer.reset()
+        if self._save_fire_spread_info:
+            self.fire_stats_writer.reset()
 
     def get_current_image(self):
         return self.grid.get_current_image()

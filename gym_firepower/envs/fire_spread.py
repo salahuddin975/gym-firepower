@@ -477,9 +477,11 @@ class FireSpread(object):
 
     def get_reduced_state(self):
         fire_state = self.grid.get_reduced_state()
+
         if self._save_fire_spread_info and self.is_valid_step:
             self.fire_stats_writer.add_info(fire_state)
             self.is_valid_step = False
+
         return fire_state
 
     def step(self):
@@ -488,9 +490,10 @@ class FireSpread(object):
 
     def reset(self):
         self.grid.reset()
+
+        self.is_valid_step = True
         if self._save_fire_spread_info:
             self.fire_stats_writer.reset()
-            self.is_valid_step = True
 
     def get_current_image(self):
         return self.grid.get_current_image()

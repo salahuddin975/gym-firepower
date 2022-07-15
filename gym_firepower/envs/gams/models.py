@@ -416,7 +416,8 @@ equations        GenOpt1(i)                    "Generator operating condition",
 GenOpt1(i)..    PGn(i) =g= PGLbarT(i)*NodeStat(i)*OutGen(i);
 GenOpt2(i)..    PGn(i) =l= PGUbarT(i)*NodeStat(i)*OutGen(i);
 RRateLimit1(i).. PGn(i) - PGBegin(i)  =l=  IntDur*Rampbar(i)*NodeStat(i)*OutGen(i);
-RRateLimit2(i).. PGn(i) - PGBegin(i)  =g= -IntDur*Rampbar(i)*NodeStat(i)*OutGen(i) - PGUbarT(i)*(1 - OutGen(i));
+* RRateLimit2(i).. PGn(i) - PGBegin(i)  =g= -IntDur*Rampbar(i)*NodeStat(i)*OutGen(i) - PGUbarT(i)*(1 - OutGen(i));
+RRateLimit2(i).. PGn(i) - PGBegin(i) =g= -IntDur*Rampbar(i)*NodeStat(i)*OutGen(i) - 10000*Rampbar(i)*(1 - OutGen(i));
 OutGen.up(i) = GenStat(i);
 
 

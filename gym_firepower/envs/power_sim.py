@@ -18,7 +18,7 @@ import glob
 pp = PrettyPrinter(compact=True, depth=3)
 
 
-class SharedDataSet:
+class GamsDataSet:
     def __init__(self, ppc_int, initial_load_flow, num_bus, num_branch, from_buses, to_buses):
         self.bus_status = np.ones(num_bus, dtype=int)
         self.branch_status = np.zeros((num_bus, num_bus), dtype=np.float32)
@@ -227,25 +227,25 @@ class PowerOperations(object):
         self._initialize()
 
     def _initialize(self):
-        self._shared_ds = SharedDataSet(self.ppc_int, self.initial_load_flow, self.num_bus, self.num_branch, self.from_buses, self.to_buses)
+        self._gams_ds = GamsDataSet(self.ppc_int, self.initial_load_flow, self.num_bus, self.num_branch, self.from_buses, self.to_buses)
         self._solve_initial_model()
 
-        self._myopic_ds = deepcopy(self._shared_ds)
-        self._target_myopic_ds = deepcopy(self._shared_ds)
-        self._rl_ds = deepcopy(self._shared_ds)
+        # self._myopic_ds = deepcopy(self._gams_ds)
+        # self._target_myopic_ds = deepcopy(self._gams_ds)
+        # self._rl_ds = deepcopy(self._gams_ds)
 
     def _solve_initial_model(self):        
-        self._gams_interface.setup_problem(initial_model_v2, self._shared_ds, self.episode_no, self.step_no)
-        self.has_converged, self.p_load_solved = self._gams_interface.extract_results(self._shared_ds)
+        self._gams_interface.setup_problem(initial_model_v2, self._gams_ds, self.episode_no, self.step_no)
+        self.has_converged, self.p_load_solved = self._gams_interface.extract_results(self._gams_ds)
 
         assert self.has_converged, "Initial Model did not converge"
-        self.pg_upper_initial = deepcopy(self._shared_ds.pg_upper)
-        self.pg_lower_initial = deepcopy(self._shared_ds.pg_lower)
+        self.pg_upper_initial = deepcopy(self._gams_ds.pg_upper)
+        self.pg_lower_initial = deepcopy(self._gams_ds.pg_lower)
 
     def _solve_runtime_model(self):
-        self._gams_interface.setup_problem(run_time_model_v2, self._shared_ds, self.episode_no, self.step_no)
-        self.has_converged, self.p_load_solved = self._gams_interface.extract_results(self._shared_ds)
-        assert self.has_converged, "Run time Model did not converge"
+        self._gams_interface.setup_problem(run_time_model_v2, self._gams_ds, self.episode_no, self.step_no)
+        self.has_converged, self.p_load_solved = self._gams_interface.extract_results(self._gams_ds)
+        assert self.has_converged, f"Run time Model did not converge, {self._gams_ds}"
 
     def _check_violations(self, action):
         injections = {int(key): 0 for key in action["generator_selector"]}
@@ -256,37 +256,37 @@ class PowerOperations(object):
         for gen_bus in self.ppc_int["gen"][:,GEN_BUS]:
             gen_bus = int(gen_bus)
             # ignore the removed generators
-            if action["bus_status"][gen_bus] == 0 or self._shared_ds.bus_status[gen_bus] == 0:
+            if action["bus_status"][gen_bus] == 0 or self._gams_ds.bus_status[gen_bus] == 0:
                 continue
             if gen_bus in action["generator_selector"]:
                 # fixing PG_injections to the value provided by the agent
-                self._shared_ds.pg_injection[gen_bus] = self._shared_ds.pg_injection[gen_bus] + injections[gen_bus]
-                self._shared_ds.pg_lower[gen_bus] = self._shared_ds.pg_injection[gen_bus]
-                self._shared_ds.pg_upper[gen_bus] = self._shared_ds.pg_injection[gen_bus]
+                self._gams_ds.pg_injection[gen_bus] = self._gams_ds.pg_injection[gen_bus] + injections[gen_bus]
+                self._gams_ds.pg_lower[gen_bus] = self._gams_ds.pg_injection[gen_bus]
+                self._gams_ds.pg_upper[gen_bus] = self._gams_ds.pg_injection[gen_bus]
             else:
                 # for free generators to initial values(P_MAX, P_MIN)
-                self._shared_ds.pg_lower[gen_bus] = self.pg_lower_initial[gen_bus]
-                self._shared_ds.pg_upper[gen_bus] = self.pg_upper_initial[gen_bus]
+                self._gams_ds.pg_lower[gen_bus] = self.pg_lower_initial[gen_bus]
+                self._gams_ds.pg_upper[gen_bus] = self.pg_upper_initial[gen_bus]
 
         return False
     
     def _check_protection_system_actions(self, fire_state):
         for branch in fire_state["branch"]:
             if fire_state["branch"][branch] == 0:
-                self._shared_ds.branch_status[branch[0]][branch[1]] = 0
-                self._shared_ds.branch_status[branch[1]][branch[0]] = 0
-                self._shared_ds.power_flow_line_upper[branch[0]][branch[1]] = 0
-                self._shared_ds.power_flow_line_upper[branch[1]][branch[0]] = 0
+                self._gams_ds.branch_status[branch[0]][branch[1]] = 0
+                self._gams_ds.branch_status[branch[1]][branch[0]] = 0
+                self._gams_ds.power_flow_line_upper[branch[0]][branch[1]] = 0
+                self._gams_ds.power_flow_line_upper[branch[1]][branch[0]] = 0
         
         for node in fire_state["node"]:
             if fire_state["node"][node] == 0:
-                self._shared_ds.pg_injection[node] = 0
-                self._shared_ds.pg_lower[node] = 0
-                self._shared_ds.pg_upper[node] = 0
-                self._shared_ds.ramp_upper[node] = 0
-                self._shared_ds.p_load[node] = 0
-                self._shared_ds.pload_served[node] = 0
-                self._shared_ds.bus_status[node] = 0
+                self._gams_ds.pg_injection[node] = 0
+                self._gams_ds.pg_lower[node] = 0
+                self._gams_ds.pg_upper[node] = 0
+                self._gams_ds.ramp_upper[node] = 0
+                self._gams_ds.p_load[node] = 0
+                self._gams_ds.pload_served[node] = 0
+                self._gams_ds.bus_status[node] = 0
 
     def _remove_temp_files(self):
         temp_files = glob.glob(os.path.join(self.gams_dir, '_gams_py_*'))
@@ -304,34 +304,34 @@ class PowerOperations(object):
 
     def get_state(self):
         state = {}
-        state["generator_injection"] = self._shared_ds.pg_injection
-        # state["load_demand"] = self._shared_ds.p_load
-        state["load_demand"] = self._shared_ds.pload_served      # servable load demand
-        # state["pload_served"] = self._shared_ds.pload_served
-        state["branch_status"] = np.array([self._shared_ds.branch_status[self.from_buses[ctr]][self.to_buses[ctr]] for ctr in range(self.num_branch)])
-        state["theta"] = self._shared_ds.theta
-        state["bus_status"] = self._shared_ds.bus_status
-        state["line_flow"] = np.array([self._shared_ds.power_flow_line[self.from_buses[ctr]][self.to_buses[ctr]] for ctr in range(self.num_branch)])
+        state["generator_injection"] = self._gams_ds.pg_injection
+        # state["load_demand"] = self._gams_ds.p_load
+        state["load_demand"] = self._gams_ds.pload_served      # servable load demand
+        # state["pload_served"] = self._gams_ds.pload_served
+        state["branch_status"] = np.array([self._gams_ds.branch_status[self.from_buses[ctr]][self.to_buses[ctr]] for ctr in range(self.num_branch)])
+        state["theta"] = self._gams_ds.theta
+        state["bus_status"] = self._gams_ds.bus_status
+        state["line_flow"] = np.array([self._gams_ds.power_flow_line[self.from_buses[ctr]][self.to_buses[ctr]] for ctr in range(self.num_branch)])
 
         return deepcopy(state)
 
     def _set_generator_status_based_on_target_myopic(self):
         for i in range(len(self._target_myopic_ds.gen_status)):
             if self._target_myopic_ds.gen_status[i] == 0:
-                self._shared_ds.gen_status[i] = 0
-                self._shared_ds.pg_injection[i] = 0
-                self._shared_ds.pg_lower[i] = 0
-                self._shared_ds.pg_upper[i] = 0
-                self._shared_ds.ramp_upper[i] = 0
+                self._gams_ds.gen_status[i] = 0
+                self._gams_ds.pg_injection[i] = 0
+                self._gams_ds.pg_lower[i] = 0
+                self._gams_ds.pg_upper[i] = 0
+                self._gams_ds.ramp_upper[i] = 0
 
     def step(self, action, fire_state):
-        if action["action_type"] == "myopic":
-            self._shared_ds = self._myopic_ds
-        elif action["action_type"] == "target_myopic":
-            self._shared_ds = self._target_myopic_ds
-        elif action["action_type"] == "rl":
-            self._shared_ds = self._rl_ds
-            self._set_generator_status_based_on_target_myopic()
+        # if action["action_type"] == "myopic":
+        #     self._gams_ds = self._myopic_ds
+        # elif action["action_type"] == "target_myopic":
+        #     self._gams_ds = self._target_myopic_ds
+        # elif action["action_type"] == "rl":
+        #     self._gams_ds = self._rl_ds
+            # self._set_generator_status_based_on_target_myopic()
 
         self.episode_no = action["episode"]
         self.step_no = action["step_count"]
@@ -346,17 +346,17 @@ class PowerOperations(object):
             logger.warn("Got non-convergence in the simulation checking")
             print("Got non-convergence in the simulation checking")
 
-        if action["action_type"] == "rl":
-            self._target_myopic_ds = deepcopy(self._shared_ds)
-            self._rl_ds = deepcopy(self._shared_ds)
-        elif action["action_type"] == "myopic":
-            self._myopic_ds = deepcopy(self._shared_ds)
+        # if action["action_type"] == "rl":
+        #     self._target_myopic_ds = deepcopy(self._gams_ds)
+        #     self._rl_ds = deepcopy(self._gams_ds)
+        # elif action["action_type"] == "myopic":
+        #     self._myopic_ds = deepcopy(self._gams_ds)
 
     def get_status(self):
         return not self.has_converged
 
     def get_load_loss(self):
-        return sum(self._shared_ds.p_load_initial) - self.p_load_solved
+        return sum(self._gams_ds.p_load_initial) - self.p_load_solved
 
     @ staticmethod
     def mergeGenerators(ppc):

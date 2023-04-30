@@ -19,6 +19,7 @@ from gym_firepower.envs.fire_spread_log_writer import FireSpreadInfoWriter
 DEFAULT_FUEL_TYPE = -1
 DEFAULT_FUEL_AMT = 100
 DEFAULT_SPREAD_PROBAB = 0.02
+DIFFERENT_FUEL_AMOUNT = True      # False: all cell fuel amount is 100; True: fuel amount based on cell type; keep True
 
 MAX_NUM_FIRE_SOURCES = 5
 NEW_FIRE_SOURCE_PROBAB = 0.015
@@ -97,7 +98,10 @@ class Grid(object):
         if "fuel_type" in args.keys():
             self._update_with_configuration(args["fuel_type"], self.fuel_type)
         if "fuel_amt" in args.keys():
-            self._update_with_configuration(args["fuel_amt"], self.fuel_amt)
+            if DIFFERENT_FUEL_AMOUNT:
+                self._update_with_configuration(args["fuel_amt"], self.fuel_amt)
+            else:
+                pass
         if "spread_probab" in args.keys():
             self._update_with_configuration(args["spread_probab"], self.spread_probab)
     

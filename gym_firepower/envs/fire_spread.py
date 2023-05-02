@@ -467,6 +467,7 @@ class Cell(object):
 class FireSpread(object):
     def __init__(self, conf_file, factor, seed, save_fire_spread_info=False):
         print("----------- fire_spread_prob:", DEFAULT_SPREAD_PROBAB, "--------------")
+        print("----------- FUEL_AMT_BASED_ON_CELL_TYPE:", FUEL_AMT_BASED_ON_CELL_TYPE, "-----------")
         np_rng, seed = seeding.np_random(seed)
         self.grid = Grid(conf_file, factor, np_rng)
 

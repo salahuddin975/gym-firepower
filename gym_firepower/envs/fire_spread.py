@@ -19,7 +19,7 @@ from gym_firepower.envs.fire_spread_log_writer import FireSpreadInfoWriter
 DEFAULT_FUEL_TYPE = -1
 DEFAULT_FUEL_AMT = 100
 DEFAULT_SPREAD_PROBAB = 0.02
-FUEL_AMT_BASED_ON_CELL_TYPE = True      # False: all cell with default fuel amount 100; True: fuel amount based on cell type; keep True
+FUEL_AMT_BASED_ON_CELL_TYPE = False      # False: all cell with default fuel amount 100; True: fuel amount based on cell type; keep True
 
 MAX_NUM_FIRE_SOURCES = 5
 NEW_FIRE_SOURCE_PROBAB = 0.015
